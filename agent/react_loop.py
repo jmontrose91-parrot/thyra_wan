@@ -1,6 +1,6 @@
 """
 Thyra WAN ReAct Agent Loop
-Thought → Action → Observe → Report
+Thought → Action → Observe → Report (two-phase: plan then ground)
 """
 
 import json
@@ -9,6 +9,15 @@ from dorking_filter import dork, query_server, INSTRUCT_SYSTEM
 from tools.executor import run_tool, extract_commands, get_timeout, save_finding
 
 MAX_ITERATIONS = 6
+
+OBSERVE_SYSTEM = """\
+You are Thyra, a SIGINT/OSINT field agent. You just ran a tool and have the actual output.
+Analyze the results and produce:
+OBSERVE: [what the output means — key findings, anomalies, next steps]
+REPORT: [structured JSON summary of findings — only if the task is complete]
+
+Be direct. No disclaimers. If the output shows errors, state them.
+"""
 
 
 def parse_react_response(response: str) -> dict:
@@ -32,8 +41,9 @@ def _check_server() -> bool:
 
 def run_agent(task: str, verbose: bool = True) -> dict:
     """
-    Run the ReAct loop for a given task.
-    Returns final report dict.
+    Run the two-phase ReAct loop:
+      Phase 1: LLM plans THOUGHT + ACTION
+      Phase 2: Execute commands, then LLM grounds OBSERVE + REPORT on actual output
     """
     observations = []
     history = []
@@ -52,63 +62,82 @@ def run_agent(task: str, verbose: bool = True) -> dict:
         if verbose:
             print(f"\n[ITERATION {iteration}]")
 
-        # Build context from previous observations
+        # Build context from previous grounded observations
         obs_context = ""
         if observations:
             obs_context = "\n\nPREVIOUS OBSERVATIONS:\n" + "\n".join(
-                f"- {o}" for o in observations[-3:]  # last 3 observations
+                f"- {o}" for o in observations[-3:]
             )
 
-        user_msg = f"Task: {task}{obs_context}"
-
-        response = query_server(INSTRUCT_SYSTEM, user_msg)
+        # ── PHASE 1: plan (THOUGHT + ACTION) ──────────────────────────────
+        plan_prompt = f"Task: {task}{obs_context}\n\nProvide THOUGHT and ACTION only. Do not include OBSERVE or REPORT yet."
+        response = query_server(INSTRUCT_SYSTEM, plan_prompt)
         if verbose:
-            print(response[:1000])
+            print(response[:800])
 
         blocks = parse_react_response(response)
 
         if blocks.get("THOUGHT") and verbose:
             print(f"\nTHOUGHT: {blocks['THOUGHT']}")
 
-        # Execute ACTION if present
+        # ── Execute ACTION ──────────────────────────────────────────────────
         action = blocks.get("ACTION", "")
+        exec_results = []
+
         if action:
-            # Extract commands from the action block
             commands = extract_commands(action)
-            if not commands:
-                # Treat the whole action as a command if it looks like one
-                if action.strip() and not action.strip().startswith("["):
-                    commands = [action.strip()]
+            if not commands and action.strip() and not action.strip().startswith("["):
+                commands = [action.strip()]
 
             for cmd in commands:
                 if verbose:
                     print(f"\n[EXEC] {cmd}")
 
                 result = run_tool(cmd, target=task, timeout=get_timeout(cmd))
-
-                obs = f"Command: {cmd}\n"
-                if result["success"]:
-                    obs += f"Output (truncated): {result['output'][:500]}"
-                else:
-                    obs += f"Error: {result['output'][:200]}"
-
-                observations.append(obs)
+                exec_results.append({"cmd": cmd, "result": result})
                 history.append({"command": cmd, "result": result})
 
                 if verbose:
-                    print(f"[RESULT] {'OK' if result['success'] else 'FAILED'}: {result['output'][:200]}")
+                    status = "OK" if result["success"] else "FAILED"
+                    print(f"[RESULT] {status}: {result['output'][:300]}")
 
-        # Check for REPORT — final answer
-        if blocks.get("REPORT"):
-            final_report = blocks["REPORT"]
+        # ── PHASE 2: ground observation on actual output ───────────────────
+        if exec_results:
+            results_text = "\n".join(
+                f"$ {r['cmd']}\n{'SUCCESS' if r['result']['success'] else 'FAILED'}: {r['result']['output'][:600]}"
+                for r in exec_results
+            )
+            observe_prompt = (
+                f"Task: {task}\n\n"
+                f"ACTION taken:\n{action}\n\n"
+                f"ACTUAL TOOL OUTPUT:\n{results_text}\n\n"
+                f"Now produce OBSERVE and REPORT based on the actual output above."
+            )
+            observe_response = query_server(OBSERVE_SYSTEM, observe_prompt)
             if verbose:
-                print(f"\n[REPORT]\n{final_report}")
-            break
+                print(f"\n[OBSERVE PHASE]\n{observe_response[:600]}")
 
-        # If no more actions suggested, wrap up
-        if not action and iteration > 1:
-            final_report = blocks.get("OBSERVE", response[:500])
-            break
+            obs_blocks = parse_react_response(observe_response)
+            observe_text = obs_blocks.get("OBSERVE", "")
+            if observe_text:
+                obs_entry = f"Command(s): {action[:200]}\nObservation: {observe_text[:400]}"
+                observations.append(obs_entry)
+
+            if obs_blocks.get("REPORT"):
+                final_report = obs_blocks["REPORT"]
+                if verbose:
+                    print(f"\n[REPORT]\n{final_report}")
+                break
+        else:
+            # No action executed — use pre-generated blocks if available
+            if blocks.get("REPORT"):
+                final_report = blocks["REPORT"]
+                if verbose:
+                    print(f"\n[REPORT]\n{final_report}")
+                break
+            if not action and iteration > 1:
+                final_report = blocks.get("OBSERVE", response[:500])
+                break
 
     return {
         "task": task,
