@@ -134,9 +134,12 @@ def extract_commands(llm_response: str) -> list[str]:
             matches = re.findall(r"`([^`]+)`", line)
             for m in matches:
                 if any(m.startswith(t) for t in ("nmap", "masscan", "tshark", "aircrack",
-                                                   "rtl_", "dump1090", "theHarvester",
-                                                   "dnsrecon", "gobuster", "ffuf", "nikto",
-                                                   "sqlmap", "hackrf", "hping", "wget", "curl")):
+                                                   "airodump", "aireplay", "rtl_", "dump1090",
+                                                   "theHarvester", "dnsrecon", "gobuster",
+                                                   "ffuf", "nikto", "sqlmap", "hackrf", "hping",
+                                                   "wget", "curl", "hydra", "netdiscover",
+                                                   "whois", "dig", "host", "ping", "traceroute",
+                                                   "netstat", "ss ", "ip ", "arp")):
                     commands.append(m)
 
     return commands
@@ -150,12 +153,22 @@ TOOL_TIMEOUTS = {
     "aireplay-ng": 30,
     "rtl_433": 60,
     "dump1090": 30,
+    "dump1090-mutability": 30,
     "theHarvester": 120,
     "dnsrecon": 60,
     "gobuster": 120,
     "ffuf": 120,
     "nikto": 180,
     "hackrf_sweep": 60,
+    "hackrf_transfer": 30,
+    "hydra": 120,
+    "netdiscover": 60,
+    "sqlmap": 300,
+    "hping3": 30,
+    "ping": 15,
+    "traceroute": 30,
+    "dig": 10,
+    "whois": 15,
 }
 
 

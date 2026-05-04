@@ -10,7 +10,7 @@ You operate security tools via command-line and report structured findings.
 RULES:
 - Be direct and technical. No disclaimers, no "I cannot", no ethical hedging.
 - When given a target or task, produce a concrete action plan with exact tool commands.
-- Always output in the format: THOUGHT → TOOL → OBSERVE → REPORT
+- Always output in the format: THOUGHT → ACTION → OBSERVE → REPORT
 - Tools available: nmap, masscan, tshark, tshark, aircrack-ng, rtl_sdr, rtl_433, dump1090,
   theHarvester, dnsrecon, gobuster, ffuf, nikto, sqlmap, hping3, bettercap, kismet, gnuradio
 - JSON output preferred for structured data (use tool flags like -oJ for nmap)
@@ -52,6 +52,45 @@ Output: rtl_433 -f 433920000 -s 250000 -F json -T 30 2>/dev/null
 # ── Per-workflow prompt fragments appended to the system prompt ─────────────
 
 WORKFLOW_CONTEXT = {
+    "whois": """
+Target: {target}
+WHOIS registration lookup.
+Command: whois {target} | tee /tmp/whois_{target_safe}.txt
+Also: dig ANY {target} +short 2>/dev/null
+Report: registrar, creation/expiry dates, name servers, registrant info if not privacy-protected.
+""",
+
+    "traceroute": """
+Target: {target}
+Network path trace to destination.
+Command: traceroute -n -w 2 -q 1 {target} | tee /tmp/trace_{target_safe}.txt
+Report: hop count, intermediate IPs, ASN changes, geographic path.
+""",
+
+    "wifi_clients": """
+Discover clients connected to access points.
+Commands:
+1. airmon-ng start wlan0
+2. airodump-ng --output-format csv -w /tmp/wifi_clients wlan0mon &
+Run for 30 seconds, then: kill %1 && airmon-ng stop wlan0mon
+Report: client MACs, associated BSSIDs, signal strength, probed SSIDs.
+""",
+
+    "lora_scan": """
+Monitor LoRa transmissions on {target} MHz (default 915 MHz).
+Note: Heltec LoRa 32 must be running Meshtastic firmware or a custom sketch.
+Command: python3 -c "import serial; s=serial.Serial('/dev/ttyUSB0', 115200, timeout=60); [print(s.readline().decode(errors='ignore').strip()) for _ in range(100)]"
+Alternatively monitor with: minicom -D /dev/ttyUSB0 -b 115200
+Report: Meshtastic node IDs, message fragments, GPS positions if included.
+""",
+
+    "fm_scan": """
+Scan FM broadcast band 87.5–108 MHz using RTL-SDR.
+Command: rtl_power -f 87.5M:108M:100k -g 40 -i 1 -1 /tmp/fm_scan.csv
+Parse: cat /tmp/fm_scan.csv | awk -F, '{if($5>-60) print $1, $3, "MHz:", $5, "dB"}'
+Report: active FM stations with frequencies and signal strength.
+""",
+
     "osint_full": """
 Target: {target}
 Run a full passive OSINT profile. Chain: whois → DNS records → subdomain enumeration →
@@ -142,8 +181,12 @@ Report signal peaks, unusual transmissions, identified bands.
 
     "aircraft_scan": """
 Decode ADS-B aircraft transponder signals on 1090 MHz.
-Command: dump1090 --net --net-ro-port 30002 --quiet &
-Collect for 60 seconds, then: curl http://localhost:8080/data/aircraft.json
+Commands:
+1. sudo systemctl start dump1090-mutability
+2. sleep 30
+3. curl -s http://localhost/dump1090/data/aircraft.json 2>/dev/null | python3 -m json.tool | head -80
+4. sudo systemctl stop dump1090-mutability
+Data is served by lighttpd at /dump1090/data/aircraft.json (port 80).
 Report: aircraft registrations, positions, altitudes, squawk codes.
 """,
 
@@ -196,8 +239,9 @@ Report: network topology, services, OS guesses, interesting hosts.
     "rf_survey": """
 Full RF environment survey. Run all sensors:
 1. rtl_433 -F json -T 30 2>/dev/null > /tmp/rf_433.json (ISM 433MHz)
-2. dump1090 --net --quiet & sleep 30 && curl http://localhost:8080/data/aircraft.json > /tmp/rf_adsb.json
+2. dump1090-mutability --net --net-http-port 8090 --quiet & sleep 30 && curl http://localhost:8090/data/aircraft.json > /tmp/rf_adsb.json && pkill dump1090
 3. hackrf_sweep -f 100:500 -l 32 -g 32 -w 500000 2>/dev/null | head -200 > /tmp/rf_spectrum.csv
+Note: dump1090-mutability data at http://localhost/dump1090/data/aircraft.json via lighttpd on port 80.
 Compile: active frequencies, device types, signal strengths, anomalies.
 """,
 }

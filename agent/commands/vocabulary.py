@@ -6,7 +6,8 @@ Maps plain English commands to structured intent objects.
 COMMANDS = {
     # ── OSINT ──────────────────────────────────────────────────────────────
     "recon": {
-        "aliases": ["recon", "reconnaissance", "gather info on", "info on", "look up"],
+        "aliases": ["recon", "reconnaissance", "gather info on", "info on", "look up",
+                    "osint", "intel on", "investigate", "profile"],
         "args": ["target"],
         "model": "instruct",
         "description": "Full passive OSINT profile on a domain, IP, or person",
@@ -20,7 +21,8 @@ COMMANDS = {
         "workflow": "email_harvest",
     },
     "subdomain_scan": {
-        "aliases": ["subdomain scan", "subdomains", "enumerate subdomains", "find subdomains"],
+        "aliases": ["subdomain scan", "subdomains", "enumerate subdomains", "find subdomains",
+                    "subdomain enum", "enum subdomains", "sub enum", "sub scan", "brute subdomains"],
         "args": ["domain"],
         "model": "code",
         "description": "Enumerate subdomains of a target domain",
@@ -78,7 +80,8 @@ COMMANDS = {
         "workflow": "traceroute",
     },
     "packet_capture": {
-        "aliases": ["capture packets", "sniff", "capture traffic", "pcap", "tshark"],
+        "aliases": ["capture packets", "sniff", "capture traffic", "pcap", "tshark",
+                    "sniff traffic", "monitor traffic", "capture", "listen on", "dump traffic"],
         "args": ["interface", "filter?", "duration?"],
         "model": "code",
         "description": "Packet capture with optional BPF filter",
@@ -110,7 +113,9 @@ COMMANDS = {
 
     # ── SDR / RF ───────────────────────────────────────────────────────────
     "spectrum_scan": {
-        "aliases": ["spectrum scan", "scan spectrum", "rf scan", "scan rf", "scan frequencies"],
+        "aliases": ["spectrum scan", "scan spectrum", "rf scan", "scan rf", "scan frequencies",
+                    "rf sweep", "sweep rf", "frequency sweep", "sweep frequencies", "hackrf sweep",
+                    "sweep spectrum", "freq sweep"],
         "args": ["start_freq?", "end_freq?"],
         "model": "code",
         "description": "Wideband RF spectrum scan with HackRF",
@@ -177,7 +182,8 @@ COMMANDS = {
         "workflow": "network_map",
     },
     "rf_survey": {
-        "aliases": ["rf survey", "rf overview", "scan all rf", "rf environment"],
+        "aliases": ["rf survey", "rf overview", "scan all rf", "rf environment",
+                    "full rf", "rf recon", "radio survey", "radio environment"],
         "args": [],
         "model": "instruct",
         "description": "Full RF environment survey: spectrum + 433 + aircraft + LoRa",
@@ -187,13 +193,16 @@ COMMANDS = {
 
 
 def match_command(text: str) -> tuple[str | None, dict | None]:
-    """Match plain English input to a command entry."""
+    """Match plain English input to a command entry, preferring longer alias matches."""
     text_lower = text.lower().strip()
+    best_cmd = None
+    best_alias_len = 0
     for cmd_name, cmd in COMMANDS.items():
         for alias in cmd["aliases"]:
-            if text_lower.startswith(alias) or alias in text_lower:
-                return cmd_name, cmd
-    return None, None
+            if (text_lower.startswith(alias) or alias in text_lower) and len(alias) > best_alias_len:
+                best_cmd = (cmd_name, cmd)
+                best_alias_len = len(alias)
+    return best_cmd if best_cmd else (None, None)
 
 
 def list_commands() -> str:
