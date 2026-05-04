@@ -233,7 +233,7 @@ Frequency range: {start_freq} to {end_freq}
 Wideband RF spectrum scan using HackRF.
 Commands:
 1. hackrf_sweep -f {start_freq_mhz}:{end_freq_mhz} -l 32 -g 32 -w 100000 2>/dev/null | tee /tmp/thyra_output/spectrum_{start_freq_mhz}_{end_freq_mhz}.csv
-2. rtl_power -f {start_freq}:{end_freq}:100k -g 40 -i 1 -1 /tmp/thyra_output/spectrum_rtl.csv
+2. rtl_power -f {start_freq_mhz}M:{end_freq_mhz}M:100k -g 40 -i 1 -1 /tmp/thyra_output/spectrum_rtl.csv
 Report signal peaks, unusual transmissions, identified bands.
 """,
 
