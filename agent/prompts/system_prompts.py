@@ -155,9 +155,11 @@ Report: all visible APs with SSID, BSSID, channel, encryption, signal strength, 
 """,
 
     "rtl_power_scan": """
-RTL-SDR power scan across frequency range: {target}
-Command: python3 ~/agent/tools/rtl_power_json.py --freq {target} --time 30 --threshold -70
-Also available: rtl_power -f {target} -g 40 -i 1 -1 /tmp/thyra_output/rtl_power.csv
+RTL-SDR power scan across frequency range. Target/range: {target}
+If no range given, default to 88M:108M (FM band) for a quick survey.
+Commands:
+rtl_power -f {start_freq_mhz}M:{end_freq_mhz}M:100k -g 40 -i 1 -1 /tmp/thyra_output/rtl_power_{target_safe}.csv
+python3 ~/agent/tools/rtl_power_json.py --freq {start_freq_mhz}:{end_freq_mhz} --time 30 --threshold -70 | tee /tmp/thyra_output/rtl_power_{target_safe}.json
 Report: top signals by frequency (MHz) and power (dBm), identify occupied bands.
 """,
 
