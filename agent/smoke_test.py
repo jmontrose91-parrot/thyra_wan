@@ -179,6 +179,7 @@ tools = {
     "hydra": "which hydra",
     "recon-ng": "which recon-ng",
     "p0f": "which p0f",
+    "whois": "which whois",
 }
 optional_tools = {
     "theHarvester": "which theHarvester",
