@@ -5,6 +5,13 @@ Maps plain English commands to structured intent objects.
 
 COMMANDS = {
     # ── OSINT ──────────────────────────────────────────────────────────────
+    "recon_ng": {
+        "aliases": ["recon-ng", "reconng", "recon ng", "full osint", "osint chain"],
+        "args": ["target"],
+        "model": "instruct",
+        "description": "Multi-source OSINT chain via recon-ng (domains, hosts, contacts)",
+        "workflow": "recon_ng",
+    },
     "recon": {
         "aliases": ["recon", "reconnaissance", "gather info on", "info on", "look up",
                     "osint", "intel on", "investigate", "profile"],
@@ -89,6 +96,13 @@ COMMANDS = {
     },
 
     # ── WIFI ───────────────────────────────────────────────────────────────
+    "kismet_survey": {
+        "aliases": ["kismet survey", "kismet scan", "passive wifi", "wifi passive", "silent wifi scan"],
+        "args": ["interface?"],
+        "model": "code",
+        "description": "Passive 802.11 survey via Kismet REST API (no probe frames)",
+        "workflow": "kismet_survey",
+    },
     "wifi_survey": {
         "aliases": ["wifi survey", "scan wifi", "find networks", "list access points", "ap scan"],
         "args": [],
@@ -112,13 +126,28 @@ COMMANDS = {
     },
 
     # ── SDR / RF ───────────────────────────────────────────────────────────
+    "rtl_power_scan": {
+        "aliases": ["rtl power", "power scan", "signal survey", "power spectrum", "spectrum power"],
+        "args": ["freq_range?"],
+        "model": "code",
+        "description": "RTL-SDR power scan → JSON with top signals above threshold",
+        "workflow": "rtl_power_scan",
+    },
+    "hackrf_scan": {
+        "aliases": ["hackrf scan", "hackrf sweep", "hackrf receive", "hackrf listen",
+                    "hackrf capture", "hackrf python"],
+        "args": ["start_freq?", "end_freq?"],
+        "model": "code",
+        "description": "HackRF One sweep via python_hackrf library",
+        "workflow": "spectrum_scan",
+    },
     "spectrum_scan": {
         "aliases": ["spectrum scan", "scan spectrum", "rf scan", "scan rf", "scan frequencies",
-                    "rf sweep", "sweep rf", "frequency sweep", "sweep frequencies", "hackrf sweep",
+                    "rf sweep", "sweep rf", "frequency sweep", "sweep frequencies",
                     "sweep spectrum", "freq sweep"],
         "args": ["start_freq?", "end_freq?"],
         "model": "code",
-        "description": "Wideband RF spectrum scan with HackRF",
+        "description": "Wideband RF spectrum scan (HackRF CLI or RTL-SDR)",
         "workflow": "spectrum_scan",
     },
     "fm_scan": {
@@ -209,11 +238,11 @@ def list_commands() -> str:
     lines = []
     category = None
     categories = {
-        "OSINT": ["recon", "email_harvest", "subdomain_scan", "dns_recon", "whois"],
-        "NETWORK": ["port_scan", "service_scan", "vuln_scan", "ping_sweep", "traceroute", "packet_capture"],
-        "WIFI": ["wifi_survey", "wifi_clients", "handshake_capture"],
-        "SDR/RF": ["spectrum_scan", "fm_scan", "aircraft_scan", "iot433", "lora_scan"],
-        "WEB": ["web_scan", "dir_fuzz"],
+        "OSINT":    ["recon_ng", "recon", "email_harvest", "subdomain_scan", "dns_recon", "whois"],
+        "NETWORK":  ["port_scan", "service_scan", "vuln_scan", "ping_sweep", "traceroute", "packet_capture"],
+        "WIFI":     ["kismet_survey", "wifi_survey", "wifi_clients", "handshake_capture"],
+        "SDR/RF":   ["rtl_power_scan", "hackrf_scan", "spectrum_scan", "fm_scan", "aircraft_scan", "iot433", "lora_scan"],
+        "WEB":      ["web_scan", "dir_fuzz"],
         "COMPOUND": ["full_recon", "network_map", "rf_survey"],
     }
     for cat, cmds in categories.items():

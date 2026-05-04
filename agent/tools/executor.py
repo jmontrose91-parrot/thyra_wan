@@ -8,11 +8,23 @@ import json
 import os
 import sqlite3
 import time
+import logging
 from pathlib import Path
 
-DB_PATH = Path.home() / "findings.db"
-OUTPUT_DIR = Path("/tmp/thyra_output")
-OUTPUT_DIR.mkdir(exist_ok=True)
+# Bootstrap config import from parent dir
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import DB_PATH, OUTPUT_DIR, DB_RESULT_LIMIT, LOG_FILE, LOG_LEVEL, LOG_MAX_MB, LOG_BACKUPS
+
+# Rotating log
+import logging.handlers
+_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE, maxBytes=LOG_MAX_MB * 1024 * 1024, backupCount=LOG_BACKUPS
+)
+_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+log = logging.getLogger("thyra.executor")
+log.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+log.addHandler(_handler)
 
 
 def init_db():
@@ -36,7 +48,7 @@ def save_finding(tool: str, command: str, target: str, result: str, summary: str
     conn = init_db()
     conn.execute(
         "INSERT INTO findings (timestamp, target, tool, command, result, summary) VALUES (?,?,?,?,?,?)",
-        (time.strftime("%Y-%m-%dT%H:%M:%S"), target, tool, command, result[:4096], summary),
+        (time.strftime("%Y-%m-%dT%H:%M:%S"), target, tool, command, result[:DB_RESULT_LIMIT], summary),
     )
     conn.commit()
     conn.close()
@@ -70,6 +82,7 @@ def run_tool(command: str, target: str = "", timeout: int = 120) -> dict:
 
         output_file.write_text(combined)
         save_finding(tool_name, command, target, combined)
+        log.info("tool=%s target=%s rc=%d", tool_name, target or "-", result.returncode)
 
         return {
             "success": result.returncode == 0,

@@ -9,14 +9,10 @@ import sys
 from commands.vocabulary import COMMANDS, match_command, list_commands
 from prompts.system_prompts import INSTRUCT_SYSTEM, CODER_SYSTEM, WORKFLOW_CONTEXT
 
-INSTRUCT_MODEL = "/home/thyra/models/Qwen3-8B-abliterated-Q4_K_M.gguf"
-CODER_MODEL    = "/home/thyra/models/Qwen2.5-Coder-7B-abliterated-Q4_K_M.gguf"
-LLAMA_CLI      = "/home/thyra/llama.cpp/build/bin/llama-cli"
-LLAMA_SERVER   = "http://localhost:8080"
-
-GPU_LAYERS     = 99
-CTX_SIZE       = 4096
-TEMP           = 0.3   # low temp for reliable command generation
+from config import (
+    INSTRUCT_MODEL, CODER_MODEL, LLAMA_CLI, LLAMA_SERVER,
+    GPU_LAYERS, CTX_SIZE, TEMP, MAX_TOKENS, SERVER_TIMEOUT,
+)
 
 
 def _safe(s: str) -> str:
@@ -88,14 +84,17 @@ def build_prompt(cmd_name: str, cmd: dict, raw_input: str) -> tuple[str, str, st
 def query_server(system: str, user: str) -> str:
     """Query llama-server OpenAI-compatible API."""
     import urllib.request
+    # Qwen3 defaults to chain-of-thought (thinking) mode which wraps output in <think> tags
+    # and returns empty content. /no_think disables this for direct command output.
+    user_with_flag = user + " /no_think"
     payload = json.dumps({
         "model": "thyra",
         "messages": [
             {"role": "system", "content": system},
-            {"role": "user", "content": user},
+            {"role": "user", "content": user_with_flag},
         ],
         "temperature": TEMP,
-        "max_tokens": 1024,
+        "max_tokens": MAX_TOKENS,
         "stream": False,
     }).encode()
 
@@ -105,7 +104,7 @@ def query_server(system: str, user: str) -> str:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=SERVER_TIMEOUT) as resp:
             data = json.loads(resp.read())
             return data["choices"][0]["message"]["content"]
     except Exception as e:

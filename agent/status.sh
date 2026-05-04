@@ -77,18 +77,40 @@ else
     warn "findings.db not created yet (run a scan first)"
 fi
 
-# Services
+# Hardware / RF devices
 echo ""
-echo "[Services]"
-for svc in ssh vnc@:1; do
-    port=$(echo $svc | grep -oE "[0-9]+")
-    if netstat -tnl 2>/dev/null | grep -q ":${port:-22} "; then
-        ok "$svc open"
-    fi
+echo "[RF Hardware]"
+lsusb 2>/dev/null | grep -qi "hackrf" && ok "HackRF One detected" || warn "HackRF not detected (check USB)"
+lsusb 2>/dev/null | grep -qi "0bda:2838\|realtek.*rtl" && ok "RTL-SDR detected" || warn "RTL-SDR not detected"
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | while read dev; do
+    ok "Serial: $dev"
 done
-ss -tnl 2>/dev/null | grep -qE ":22 " && ok "SSH (22)" || warn "SSH not listening"
-ss -tnl 2>/dev/null | grep -qE ":5901 " && ok "VNC (5901)" || warn "VNC not on 5901"
-ss -tnl 2>/dev/null | grep -qE ":8080 " && ok "llama-server (8080)" || warn "llama-server not on 8080"
+
+# Services / Ports
+echo ""
+echo "[Ports]"
+ss -tnlp 2>/dev/null | awk '/LISTEN/{
+    match($4, /:([0-9]+)$/, a)
+    p=a[1]
+    if (p=="22")   print "  [\033[0;32mOK\033[0m]  SSH (22)"
+    if (p=="80")   print "  [\033[0;32mOK\033[0m]  lighttpd/dump1090 (80)"
+    if (p=="8080") print "  [\033[0;32mOK\033[0m]  llama-server (8080)"
+    if (p=="2501") print "  [\033[0;32mOK\033[0m]  Kismet REST API (2501)"
+}' || true
+ss -tnlp 2>/dev/null | grep -qE ":22 " || warn "SSH (22) not listening"
+
+# Recent logs
+echo ""
+echo "[Logs]"
+logfile="$HOME/logs/thyra.log"
+if [ -f "$logfile" ]; then
+    size=$(du -sh "$logfile" | cut -f1)
+    ok "thyra.log exists ($size)"
+    echo ""
+    tail -5 "$logfile" 2>/dev/null | sed 's/^/    /'
+else
+    warn "No log yet — log appears on first scan"
+fi
 
 echo ""
 echo "========================================"

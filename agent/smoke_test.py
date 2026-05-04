@@ -84,6 +84,18 @@ test_cases = [
     ("dns recon target.com", "dns_recon"),
     ("dir fuzz http://target.com", "dir_fuzz"),
     ("network map 192.168.1.0/24", "network_map"),
+    # new commands
+    ("recon-ng example.com", "recon_ng"),
+    ("full osint target.org", "recon_ng"),
+    ("kismet survey wlan0", "kismet_survey"),
+    ("passive wifi", "kismet_survey"),
+    ("power scan 88M:108M", "rtl_power_scan"),
+    ("signal survey", "rtl_power_scan"),
+    ("lora scan", "lora_scan"),
+    ("meshtastic scan", "lora_scan"),
+    # disambiguation — must NOT match shorter alias
+    ("rf survey", "rf_survey"),            # NOT spectrum_scan
+    ("hackrf sweep 100:500", "hackrf_scan"),    # hackrf sweep -> dedicated hackrf_scan command
 ]
 
 for text, expected in test_cases:
@@ -165,12 +177,17 @@ tools = {
     "hping3": "which hping3",
     "dnsrecon": "which dnsrecon",
     "hydra": "which hydra",
+    "recon-ng": "which recon-ng",
+    "p0f": "which p0f",
 }
 optional_tools = {
     "theHarvester": "which theHarvester",
     "hackrf_sweep": "which hackrf_sweep",
     "hackrf_transfer": "which hackrf_transfer",
     "rtl_sdr": "which rtl_sdr",
+    "kismet": "which kismet",
+    "csdr": "which csdr",
+    "netdiscover": "which netdiscover",
 }
 
 for name, cmd in tools.items():
@@ -183,6 +200,59 @@ for name, cmd in optional_tools.items():
     check(f"  {name} (optional)", r.returncode == 0,
           r.stdout.strip() if r.returncode == 0 else "NOT FOUND",
           optional=True)
+
+
+# ── PYTHON TOOL MODULES ───────────────────────────────────────────────────────
+section("6b. Python Tool Modules")
+
+try:
+    from tools.rtl_power_json import rtl_power_to_json, top_signals
+    check("tools.rtl_power_json", True)
+except Exception as e:
+    check("tools.rtl_power_json", False, str(e))
+
+try:
+    from tools.hackrf_sdr import sweep_cli, top_signals as hackrf_top
+    check("tools.hackrf_sdr", True)
+except Exception as e:
+    check("tools.hackrf_sdr", False, str(e))
+
+try:
+    import python_hackrf
+    check("  pip: python_hackrf", True, optional=True)
+except ImportError:
+    check("  pip: python_hackrf", False, "pip3 install python_hackrf", optional=True)
+
+try:
+    from tools.kismet_client import get_devices, start_kismet_server
+    check("tools.kismet_client", True)
+except Exception as e:
+    check("tools.kismet_client", False, str(e))
+
+try:
+    from tools.lora_listener import listen_meshtastic, listen_serial_raw
+    check("tools.lora_listener", True)
+except Exception as e:
+    check("tools.lora_listener", False, str(e))
+
+try:
+    import meshtastic
+    check("  pip: meshtastic", True, meshtastic.__version__ if hasattr(meshtastic, "__version__") else "ok", optional=True)
+except ImportError:
+    check("  pip: meshtastic", False, "pip3 install meshtastic", optional=True)
+
+try:
+    import kismet_rest
+    check("  pip: kismet-rest", True, optional=True)
+except ImportError:
+    check("  pip: kismet-rest", False, "pip3 install kismet-rest", optional=True)
+
+try:
+    import rtlsdr
+    check("  pip: pyrtlsdr", True, optional=True)
+except (ImportError, AttributeError, OSError) as e:
+    # AttributeError/OSError: librtlsdr.so may be older than pyrtlsdr expects
+    check("  pip: pyrtlsdr", False, f"librtlsdr compat issue: {e}", optional=True)
 
 
 # ── LLAMA SERVER ──────────────────────────────────────────────────────────────
@@ -200,16 +270,20 @@ except Exception as e:
 import os
 from pathlib import Path
 models_dir = Path.home() / "models"
-for model in ["Qwen3-8B-abliterated-Q4_K_M.gguf", "Qwen2.5-Coder-7B-abliterated-Q4_K_M.gguf"]:
+# Qwen3-8B-abliterated-Q4_K_M: ~5.4GB; Qwen2.5-Coder-7B-abliterated: ~4.0GB
+model_specs = [
+    ("Qwen3-8B-abliterated-Q4_K_M.gguf",       4.7),
+    ("Qwen2.5-Coder-7B-abliterated-Q4_K_M.gguf", 3.8),
+]
+for model, min_gb in model_specs:
     p = models_dir / model
     if p.exists():
         size_gb = p.stat().st_size / 1e9
-        expected = 5.0 if "8B" in model else 4.7
-        complete = size_gb > expected * 0.95
-        check(f"  model {model[:30]}", complete,
-              f"{size_gb:.1f}GB {'(complete)' if complete else '(downloading...)'}")
+        complete = size_gb >= min_gb
+        check(f"  model {model[:35]}", complete,
+              f"{size_gb:.2f}GB {'(complete)' if complete else '(downloading...)'}")
     else:
-        check(f"  model {model[:30]}", False, "NOT FOUND")
+        check(f"  model {model[:35]}", False, "NOT FOUND")
 
 
 # ── SUMMARY ───────────────────────────────────────────────────────────────────
