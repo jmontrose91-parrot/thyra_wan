@@ -80,6 +80,13 @@ Output: cat /dev/ttyUSB0 & sleep 10; kill %1
 # ── Per-workflow prompt fragments appended to the system prompt ─────────────
 
 WORKFLOW_CONTEXT = {
+    "packet_capture": """
+Interface: {target}
+Capture packets using tshark with optional BPF filter and duration limit.
+tshark -i {target} -a duration:30 -w /tmp/thyra_output/capture_{target_safe}.pcap
+To display live: tshark -i {target} -a duration:10 -T fields -e frame.time -e ip.src -e ip.dst -e tcp.dstport
+""",
+
     "whois": """
 Target: {target}
 WHOIS registration lookup.
