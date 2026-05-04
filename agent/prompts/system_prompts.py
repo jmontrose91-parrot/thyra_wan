@@ -176,9 +176,12 @@ Summarize all discovered assets, emails, IPs, and infrastructure.
 
     "email_harvest": """
 Target domain: {target}
-Harvest all discoverable email addresses. Use theHarvester with multiple sources.
-Command: theHarvester -d {target} -b google,bing,linkedin,yahoo,twitter,dnsdumpster -f /tmp/thyra_output/harvest_{target_safe}.json
-Parse output and list unique emails found.
+Harvest discoverable email addresses. theHarvester is NOT installed (requires Python 3.12).
+Use available alternatives:
+1. recon-ng -w thyra -m recon/domains-contacts/whois_pocs -o SOURCE={target} -x
+2. dnsrecon -d {target} -t std 2>&1 | grep -i 'mail\|@'
+3. curl -s "https://api.certspotter.com/v1/issuances?domain={target}&expand=dns_names" 2>/dev/null | python3 -m json.tool | grep dns_name
+Report: unique email addresses or contacts discovered.
 """,
 
     "subdomain_scan": """
@@ -266,12 +269,13 @@ Report: device types, IDs, sensor readings, rolling codes detected.
 
     "web_scan": """
 Target: {target}
-Web vulnerability assessment. Use ONE ACTION block with numbered commands.
+Web vulnerability assessment using installed tools (nikto, ffuf, curl).
 Commands:
 1. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json
-2. httpx -u {target} -title -tech-detect -status-code -json -o /tmp/thyra_output/httpx_{target_safe}.json
-3. nuclei -u {target} -severity medium,high,critical -j -o /tmp/thyra_output/nuclei_{target_safe}.json
-Report: vulnerabilities found, technologies detected, interesting paths.
+2. ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,301,302,403 -o /tmp/thyra_output/ffuf_{target_safe}.json -of json
+3. curl -sI {target} | head -20
+Note: httpx and nuclei are NOT installed. Do not use them. Use only nikto, ffuf, curl.
+Report: vulnerabilities found, server headers, interesting paths.
 """,
 
     "dir_fuzz": """
@@ -288,10 +292,11 @@ Target: {target}
 Full reconnaissance chain. Execute in order:
 1. whois {target}
 2. dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
-3. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
-4. theHarvester -d {target} -b google,bing,linkedin -f /tmp/thyra_output/harvest_{target_safe}.json
+3. dig {target} A +short && dig {target} MX +short && dig {target} NS +short
+4. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
 5. nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/portscan_{target_safe}.json {target}
-6. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json (if web ports open)
+6. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json
+Note: theHarvester is NOT installed. Do not use it. Use dnsrecon + gobuster for enumeration.
 Compile all findings into a structured target profile.
 """,
 
