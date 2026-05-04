@@ -163,8 +163,14 @@ Report: top signals by frequency (MHz) and power (dBm), identify occupied bands.
 
     "osint_full": """
 Target: {target}
-Run a full passive OSINT profile. Chain: whois → DNS records → subdomain enumeration →
-email harvest → certificate transparency → Shodan lookup (if API key available).
+Full passive OSINT profile. Execute in order:
+1. whois {target} | tee /tmp/thyra_output/whois_{target_safe}.txt
+2. dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
+3. dig {target} A +short
+4. dig {target} MX +short
+5. dig {target} NS +short
+6. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
+Note: gobuster 2.x syntax is `-m dns -u DOMAIN` (not subcommand style).
 Summarize all discovered assets, emails, IPs, and infrastructure.
 """,
 
@@ -177,8 +183,11 @@ Parse output and list unique emails found.
 
     "subdomain_scan": """
 Target domain: {target}
-Enumerate subdomains using dnsrecon (DNS records) and gobuster DNS brute force.
-Save results to /tmp/thyra_output/. Report unique subdomains with resolved IPs.
+Enumerate subdomains using dnsrecon and gobuster DNS brute force.
+1. dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
+2. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
+Note: gobuster 2.x syntax is `-m dns -u DOMAIN` — not `gobuster dns -d DOMAIN`.
+Report unique subdomains with resolved IPs.
 """,
 
     "dns_recon": """
