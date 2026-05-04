@@ -325,10 +325,11 @@ Report: network topology, services, OS guesses, interesting hosts.
 
     "rf_survey": """
 Full RF environment survey. Run all sensors:
-1. rtl_433 -F json -T 30 2>/dev/null > /tmp/thyra_output/rf_433.json (ISM 433MHz)
-2. dump1090-mutability --net --net-http-port 8090 --quiet & sleep 30 && curl http://localhost:8090/data/aircraft.json > /tmp/thyra_output/rf_adsb.json && pkill dump1090
+1. rtl_433 -F json -T 30 2>/dev/null | tee /tmp/thyra_output/rf_433.json (ISM 433MHz)
+2. sudo systemctl start dump1090-mutability && sleep 30 && curl -s http://localhost/dump1090/data/aircraft.json > /tmp/thyra_output/rf_adsb.json && sudo systemctl stop dump1090-mutability
 3. hackrf_sweep -f 100:500 -l 32 -g 32 -w 500000 2>/dev/null | head -200 > /tmp/thyra_output/rf_spectrum.csv
-Note: dump1090-mutability data at http://localhost/dump1090/data/aircraft.json via lighttpd on port 80.
+Note: dump1090-mutability MUST be started via systemctl, NOT called directly with flags.
+Note: ADS-B data is served at http://localhost/dump1090/data/aircraft.json (lighttpd port 80).
 Compile: active frequencies, device types, signal strengths, anomalies.
 """,
 }
