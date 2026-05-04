@@ -257,8 +257,14 @@ Report signal peaks, unusual transmissions, identified bands.
 
     "aircraft_scan": """
 Decode ADS-B aircraft transponder signals on 1090 MHz.
-Start dump1090-mutability service, wait 30 seconds, fetch aircraft data from http://localhost/dump1090/data/aircraft.json (served by lighttpd on port 80), then stop the service.
-Report: aircraft registrations, positions, altitudes, squawk codes.
+dump1090-mutability runs as a systemd service and serves data via lighttpd on port 80.
+Commands:
+1. sudo systemctl start dump1090-mutability
+2. sleep 30
+3. curl -s http://localhost/dump1090/data/aircraft.json | python3 -m json.tool 2>/dev/null | tee /tmp/thyra_output/aircraft_scan.json
+4. sudo systemctl stop dump1090-mutability
+Note: do NOT pass any extra flags to dump1090-mutability — it is controlled only via systemctl.
+Report: aircraft registrations, positions, altitudes, squawk codes from the JSON data.
 """,
 
     "iot433": """
