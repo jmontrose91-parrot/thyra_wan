@@ -180,6 +180,7 @@ tools = {
     "recon-ng": "which recon-ng",
     "p0f": "which p0f",
     "whois": "which whois",
+    "dig": "which dig",
 }
 optional_tools = {
     "theHarvester": "which theHarvester",

@@ -12,7 +12,7 @@ TOOLS (all installed at standard paths):
   Network: nmap, masscan, tshark, hping3, netdiscover, p0f
   Wireless: aircrack-ng, airodump-ng, kismet (port 2501 REST API)
   SDR/RF:   rtl_433, rtl_power, hackrf_sweep, hackrf_transfer, dump1090-mutability
-  OSINT:    recon-ng, dnsrecon, gobuster, ffuf, nikto, sqlmap, hydra
+  OSINT:    recon-ng, dnsrecon, dig, host, nslookup, gobuster, ffuf, nikto, sqlmap, hydra
   Serial:   /dev/ttyUSB0 (Heltec LoRa), /dev/ttyUSB1 (ESP32-S3)
 
 RULES:
