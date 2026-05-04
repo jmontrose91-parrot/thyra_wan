@@ -186,8 +186,27 @@ def main():
         return
 
     # Interactive REPL
-    print("Thyra WAN — Command Interface")
-    print('Type "help" for command list, "exit" to quit\n')
+    # Check server status
+    import urllib.request as _req
+    server_ok = False
+    try:
+        with _req.urlopen(f"{LLAMA_SERVER}/health", timeout=2) as r:
+            server_ok = r.status == 200
+    except Exception:
+        pass
+
+    server_status = "ONLINE" if server_ok else "OFFLINE"
+    server_color = "\033[32m" if server_ok else "\033[31m"
+    reset = "\033[0m"
+    print("=" * 50)
+    print("  THYRA WAN — Command Interface")
+    print("=" * 50)
+    print(f"  LLM Server: {server_color}{server_status}{reset} ({LLAMA_SERVER})")
+    print("=" * 50)
+    if not server_ok:
+        print("  [!] Server offline. Run: thyra server")
+        print("  [!] Or use --no-server for direct llama-cli")
+    print('  Commands: "help" | "exit"\n')
     while True:
         try:
             raw = input("thyra> ").strip()
