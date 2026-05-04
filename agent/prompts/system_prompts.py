@@ -184,8 +184,14 @@ Save results to /tmp/thyra_output/. Report unique subdomains with resolved IPs.
     "dns_recon": """
 Target: {target}
 Full DNS record enumeration: A, AAAA, MX, TXT, NS, SOA, CNAME, PTR.
-Command: dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
+Commands:
+dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
+dig {target} A +short
+dig {target} MX +short
+dig {target} NS +short
+dig {target} TXT +short
 Also check zone transfer: dnsrecon -d {target} -t axfr
+Note: valid dig query types: A, AAAA, MX, NS, TXT, SOA, CNAME, PTR — never use +record (invalid)
 """,
 
     "port_scan": """
