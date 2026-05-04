@@ -27,14 +27,18 @@ def build_prompt(cmd_name: str, cmd: dict, raw_input: str) -> tuple[str, str, st
     """
     Returns (system_prompt, user_prompt, model_path)
     """
-    # Extract target from raw input
+    # Extract target from raw input — prefer longest matching alias to avoid substring collisions
+    raw_lower = raw_input.lower()
     alias_match = None
-    for alias in cmd["aliases"]:
-        if alias in raw_input.lower():
+    for alias in sorted(cmd["aliases"], key=len, reverse=True):
+        if raw_lower.startswith(alias) or (alias + " ") in raw_lower or raw_lower == alias:
             alias_match = alias
             break
 
-    target = raw_input.lower().replace(alias_match or "", "").strip() if alias_match else raw_input.strip()
+    if alias_match:
+        target = raw_lower.replace(alias_match, "", 1).strip()
+    else:
+        target = raw_lower.strip()
     target_safe = _safe(target)
 
     # Pick model
@@ -50,15 +54,27 @@ def build_prompt(cmd_name: str, cmd: dict, raw_input: str) -> tuple[str, str, st
     context = WORKFLOW_CONTEXT.get(workflow_key, "")
     if context:
         try:
+            parts = target.split("-")
+            # Strip MHz unit suffix (case-insensitive: 100M, 100m, 100MHz, 100mhz)
+            def strip_mhz(s):
+                s = s.strip().upper()
+                for suffix in ("MHZ", "GHZ", "KHZ", "HZ", "M", "G", "K"):
+                    if s.endswith(suffix) and s[:-len(suffix)].isdigit():
+                        return s[:-len(suffix)]
+                return s
+            # Split BSSID + channel if present (e.g. "aa:bb:cc:dd:ee:ff 6")
+            toks = target.rsplit(" ", 1)
+            bssid = toks[0].strip() if len(toks) == 2 and toks[1].isdigit() else target
+            channel = toks[1] if len(toks) == 2 and toks[1].isdigit() else "6"
             context = context.format(
                 target=target or "TARGET",
                 target_safe=target_safe or "TARGET",
-                start_freq=target.split("-")[0].strip() if "-" in target else "88M",
-                end_freq=target.split("-")[1].strip() if "-" in target else "108M",
-                start_freq_mhz=target.split("-")[0].strip().rstrip("M") if "-" in target else "88",
-                end_freq_mhz=target.split("-")[1].strip().rstrip("M") if "-" in target else "108",
-                channel="6",
-                bssid=target,
+                start_freq=parts[0].strip().upper() if len(parts) > 1 else "88M",
+                end_freq=parts[1].strip().upper() if len(parts) > 1 else "108M",
+                start_freq_mhz=strip_mhz(parts[0]) if len(parts) > 1 else "88",
+                end_freq_mhz=strip_mhz(parts[1]) if len(parts) > 1 else "108",
+                channel=channel,
+                bssid=bssid,
                 url=target,
             )
         except (KeyError, IndexError):

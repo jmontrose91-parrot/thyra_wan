@@ -16,10 +16,15 @@ WARN = "\033[33mWARN\033[0m"
 results = []
 
 
-def check(name, ok, detail=""):
-    tag = PASS if ok else FAIL
+def check(name, ok, detail="", optional=False):
+    if ok:
+        tag = PASS
+    elif optional:
+        tag = WARN
+    else:
+        tag = FAIL
     print(f"  [{tag}] {name}" + (f" — {detail}" if detail else ""))
-    results.append((name, ok))
+    results.append((name, ok, optional))
     return ok
 
 
@@ -160,14 +165,24 @@ tools = {
     "hping3": "which hping3",
     "dnsrecon": "which dnsrecon",
     "hydra": "which hydra",
+}
+optional_tools = {
     "theHarvester": "which theHarvester",
     "hackrf_sweep": "which hackrf_sweep",
+    "hackrf_transfer": "which hackrf_transfer",
+    "rtl_sdr": "which rtl_sdr",
 }
 
 for name, cmd in tools.items():
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     check(f"  {name}", r.returncode == 0,
           r.stdout.strip() if r.returncode == 0 else "NOT FOUND")
+
+for name, cmd in optional_tools.items():
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    check(f"  {name} (optional)", r.returncode == 0,
+          r.stdout.strip() if r.returncode == 0 else "NOT FOUND",
+          optional=True)
 
 
 # ── LLAMA SERVER ──────────────────────────────────────────────────────────────
@@ -199,14 +214,21 @@ for model in ["Qwen3-8B-abliterated-Q4_K_M.gguf", "Qwen2.5-Coder-7B-abliterated-
 
 # ── SUMMARY ───────────────────────────────────────────────────────────────────
 section("SUMMARY")
-passed = sum(1 for _, ok in results if ok)
-total = len(results)
-pct = 100 * passed // total if total else 0
-print(f"\n  {passed}/{total} checks passed ({pct}%)")
-if passed < total:
-    print("\n  Failed checks:")
-    for name, ok in results:
-        if not ok:
-            print(f"    - {name}")
+passed = sum(1 for _, ok, opt in results if ok)
+required_total = sum(1 for _, _, opt in results if not opt)
+required_passed = sum(1 for _, ok, opt in results if ok and not opt)
+pct = 100 * passed // len(results) if results else 0
+print(f"\n  {passed}/{len(results)} checks passed ({pct}%)")
+print(f"  Required: {required_passed}/{required_total}")
+failed_required = [(n, ok, opt) for n, ok, opt in results if not ok and not opt]
+if failed_required:
+    print("\n  Failed (required):")
+    for name, ok, opt in failed_required:
+        print(f"    - {name}")
+warned = [(n, ok, opt) for n, ok, opt in results if not ok and opt]
+if warned:
+    print("\n  Warnings (optional):")
+    for name, ok, opt in warned:
+        print(f"    - {name}")
 print()
-sys.exit(0 if passed == total else 1)
+sys.exit(0 if required_passed == required_total else 1)
