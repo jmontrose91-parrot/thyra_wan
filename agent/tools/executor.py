@@ -54,11 +54,20 @@ def save_finding(tool: str, command: str, target: str, result: str, summary: str
     conn.close()
 
 
+SUDO_TOOLS = {
+    "nmap", "masscan", "airmon-ng", "airodump-ng", "aireplay-ng",
+    "netdiscover", "hping3", "tcpdump", "tshark", "dump1090-mutability",
+}
+
+
 def run_tool(command: str, target: str = "", timeout: int = 120) -> dict:
     """
     Execute a CLI tool command. Returns structured result.
     """
-    tool_name = command.split()[0]
+    tool_name = command.split()[0].lstrip("sudo").strip().split()[0] if command.startswith("sudo ") else command.split()[0]
+    # Auto-prepend sudo for tools requiring raw socket/cap access
+    if tool_name in SUDO_TOOLS and not command.startswith("sudo "):
+        command = "sudo " + command
     output_file = OUTPUT_DIR / f"{tool_name}_{int(time.time())}.out"
 
     try:

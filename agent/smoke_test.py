@@ -220,8 +220,8 @@ except Exception as e:
 try:
     import python_hackrf
     check("  pip: python_hackrf", True, optional=True)
-except ImportError:
-    check("  pip: python_hackrf", False, "pip3 install python_hackrf", optional=True)
+except (ImportError, ValueError, Exception) as e:
+    check("  pip: python_hackrf", False, f"pip3 install python_hackrf  [{e}]", optional=True)
 
 try:
     from tools.kismet_client import get_devices, start_kismet_server

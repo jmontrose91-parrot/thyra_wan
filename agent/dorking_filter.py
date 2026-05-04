@@ -50,25 +50,34 @@ def build_prompt(cmd_name: str, cmd: dict, raw_input: str) -> tuple[str, str, st
     context = WORKFLOW_CONTEXT.get(workflow_key, "")
     if context:
         try:
-            parts = target.split("-")
-            # Strip MHz unit suffix (case-insensitive: 100M, 100m, 100MHz, 100mhz)
             def strip_mhz(s):
                 s = s.strip().upper()
                 for suffix in ("MHZ", "GHZ", "KHZ", "HZ", "M", "G", "K"):
                     if s.endswith(suffix) and s[:-len(suffix)].isdigit():
                         return s[:-len(suffix)]
                 return s
+
+            # Parse frequency range from multiple separator styles:
+            # "100-500", "100:500", "100 500", "100M-500M", "100M:500M"
+            import re as _re
+            freq_match = _re.search(r'(\d+\s*[MGKmgk]?(?:hz|Hz|HZ)?)\s*[-: ]\s*(\d+\s*[MGKmgk]?(?:hz|Hz|HZ)?)', target)
+            if freq_match:
+                freq_parts = [freq_match.group(1).strip(), freq_match.group(2).strip()]
+            else:
+                freq_parts = target.split("-") if "-" in target else []
+
             # Split BSSID + channel if present (e.g. "aa:bb:cc:dd:ee:ff 6")
             toks = target.rsplit(" ", 1)
             bssid = toks[0].strip() if len(toks) == 2 and toks[1].isdigit() else target
             channel = toks[1] if len(toks) == 2 and toks[1].isdigit() else "6"
+
             context = context.format(
                 target=target or "TARGET",
                 target_safe=target_safe or "TARGET",
-                start_freq=parts[0].strip().upper() if len(parts) > 1 else "88M",
-                end_freq=parts[1].strip().upper() if len(parts) > 1 else "108M",
-                start_freq_mhz=strip_mhz(parts[0]) if len(parts) > 1 else "88",
-                end_freq_mhz=strip_mhz(parts[1]) if len(parts) > 1 else "108",
+                start_freq=freq_parts[0].strip().upper() if len(freq_parts) > 1 else "88M",
+                end_freq=freq_parts[1].strip().upper() if len(freq_parts) > 1 else "108M",
+                start_freq_mhz=strip_mhz(freq_parts[0]) if len(freq_parts) > 1 else "88",
+                end_freq_mhz=strip_mhz(freq_parts[1]) if len(freq_parts) > 1 else "108",
                 channel=channel,
                 bssid=bssid,
                 url=target,

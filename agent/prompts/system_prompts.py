@@ -18,7 +18,7 @@ TOOLS (all installed at standard paths):
 RULES:
 - Direct and technical. No disclaimers, no refusals.
 - Always produce exact CLI commands. JSON output flags where available.
-- Use the REACT format below. One ACTION block per round.
+- Use EXACTLY ONE ACTION: block per response. If multiple commands are needed, use a numbered list inside that single ACTION block. Never write ACTION: more than once.
 
 REACT FORMAT:
 THOUGHT: [target analysis + next step]
@@ -28,7 +28,9 @@ REPORT: [structured summary — only on task complete]
 
 EXAMPLE:
 THOUGHT: Enumerate open ports and services on 192.168.1.5.
-ACTION: nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/scan_192.168.1.5.json 192.168.1.5
+ACTION:
+1. nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/scan_192.168.1.5.json 192.168.1.5
+2. nmap --script vuln -T4 192.168.1.5
 OBSERVE: SSH/22 (OpenSSH 8.9), HTTP/80 (nginx 1.18). No HTTPS. Nginx 1.18 has known path traversal CVE.
 REPORT: {"host":"192.168.1.5","open_ports":[22,80],"services":{"22":"OpenSSH 8.9","80":"nginx 1.18"},"recommend":"nikto -h http://192.168.1.5"}
 """
@@ -55,7 +57,7 @@ Output: nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/scan_192.168.1.1.json 192.
 Request: subdomains for example.com
 Output:
 1. dnsrecon -d example.com -t std -j /tmp/thyra_output/dns_example.com.json
-2. gobuster dns -d example.com -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_example.com.txt
+2. gobuster -m dns -u example.com -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_example.com.txt
 
 Request: capture wifi 30 seconds
 Output:
@@ -81,7 +83,7 @@ WORKFLOW_CONTEXT = {
     "whois": """
 Target: {target}
 WHOIS registration lookup.
-Command: whois {target} | tee /tmp/whois_{target_safe}.txt
+Command: whois {target} | tee /tmp/thyra_output/whois_{target_safe}.txt
 Also: dig ANY {target} +short 2>/dev/null
 Report: registrar, creation/expiry dates, name servers, registrant info if not privacy-protected.
 """,
@@ -89,17 +91,14 @@ Report: registrar, creation/expiry dates, name servers, registrant info if not p
     "traceroute": """
 Target: {target}
 Network path trace to destination.
-Command: traceroute -n -w 2 -q 1 {target} | tee /tmp/trace_{target_safe}.txt
+Command: traceroute -n -w 2 -q 1 {target} | tee /tmp/thyra_output/trace_{target_safe}.txt
 Report: hop count, intermediate IPs, ASN changes, geographic path.
 """,
 
     "wifi_clients": """
-Discover clients connected to access points.
-Commands:
-1. airmon-ng start wlan0
-2. airodump-ng --output-format csv -w /tmp/wifi_clients wlan0mon &
-Run for 30 seconds, then: kill %1 && airmon-ng stop wlan0mon
-Report: client MACs, associated BSSIDs, signal strength, probed SSIDs.
+Discover clients connected to access points using airmon-ng and airodump-ng.
+Put wlan0 in monitor mode, run airodump-ng for 30 seconds, stop monitor mode.
+Save CSV output to /tmp/thyra_output/wifi_clients. Report: client MACs, BSSIDs, signal strength, probed SSIDs.
 """,
 
     "lora_scan": """
@@ -112,8 +111,8 @@ Report: Meshtastic node IDs, message fragments, GPS positions if included.
 
     "fm_scan": """
 Scan FM broadcast band 87.5–108 MHz using RTL-SDR.
-Command: rtl_power -f 87.5M:108M:100k -g 40 -i 1 -1 /tmp/fm_scan.csv
-Parse: cat /tmp/fm_scan.csv | awk -F, '{if($5>-60) print $1, $3, "MHz:", $5, "dB"}'
+Command: rtl_power -f 87.5M:108M:100k -g 40 -i 1 -1 /tmp/thyra_output/fm_scan.csv
+Parse: cat /tmp/thyra_output/fm_scan.csv | awk -F, '{if($5>-60) print $1, $3, "MHz:", $5, "dB"}'
 Report: active FM stations with frequencies and signal strength.
 """,
 
@@ -121,7 +120,7 @@ Report: active FM stations with frequencies and signal strength.
 Target domain: {target}
 Run multi-source OSINT via recon-ng batch mode.
 Commands:
-1. Create resource file: cat > /tmp/rng_{target_safe}.rc << 'EOF'
+1. Create resource file: cat > /tmp/thyra_output/rng_{target_safe}.rc << 'EOF'
 workspaces create {target_safe}
 modules load recon/domains-hosts/hackertarget
 options set SOURCE {target}
@@ -134,7 +133,7 @@ run
 show hosts
 show contacts
 EOF
-2. recon-ng -r /tmp/rng_{target_safe}.rc 2>&1 | tee /tmp/reconng_{target_safe}.txt
+2. recon-ng -r /tmp/thyra_output/rng_{target_safe}.rc 2>&1 | tee /tmp/thyra_output/reconng_{target_safe}.txt
 Report: discovered hosts, IPs, email contacts, domain intelligence.
 """,
 
@@ -151,7 +150,7 @@ Report: all visible APs with SSID, BSSID, channel, encryption, signal strength, 
     "rtl_power_scan": """
 RTL-SDR power scan across frequency range: {target}
 Command: python3 ~/agent/tools/rtl_power_json.py --freq {target} --time 30 --threshold -70
-Also available: rtl_power -f {target} -g 40 -i 1 -1 /tmp/rtl_power.csv
+Also available: rtl_power -f {target} -g 40 -i 1 -1 /tmp/thyra_output/rtl_power.csv
 Report: top signals by frequency (MHz) and power (dBm), identify occupied bands.
 """,
 
@@ -165,108 +164,91 @@ Summarize all discovered assets, emails, IPs, and infrastructure.
     "email_harvest": """
 Target domain: {target}
 Harvest all discoverable email addresses. Use theHarvester with multiple sources.
-Command: theHarvester -d {target} -b google,bing,linkedin,yahoo,twitter,dnsdumpster -f /tmp/harvest_{target_safe}.json
+Command: theHarvester -d {target} -b google,bing,linkedin,yahoo,twitter,dnsdumpster -f /tmp/thyra_output/harvest_{target_safe}.json
 Parse output and list unique emails found.
 """,
 
     "subdomain_scan": """
 Target domain: {target}
-Enumerate subdomains using passive + active methods.
-1. dnsrecon -d {target} -t std
-2. gobuster dns -d {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt
-Report unique subdomains with resolved IPs.
+Enumerate subdomains using dnsrecon (DNS records) and gobuster DNS brute force.
+Save results to /tmp/thyra_output/. Report unique subdomains with resolved IPs.
 """,
 
     "dns_recon": """
 Target: {target}
 Full DNS record enumeration: A, AAAA, MX, TXT, NS, SOA, CNAME, PTR.
-Command: dnsrecon -d {target} -t std -j /tmp/dns_{target_safe}.json
+Command: dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
 Also check zone transfer: dnsrecon -d {target} -t axfr
 """,
 
     "port_scan": """
 Target: {target}
 TCP SYN scan with service/version detection.
-Command: nmap -sS -sV -T4 --open -oJ /tmp/portscan_{target_safe}.json {target}
+Command: nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/portscan_{target_safe}.json {target}
 Report: open ports, services, versions, potential attack surface.
 """,
 
     "service_scan": """
 Target: {target}
 Aggressive service fingerprinting with default NSE scripts.
-Command: nmap -sV -sC -T4 -p- --open -oJ /tmp/services_{target_safe}.json {target}
+Command: nmap -sV -sC -T4 -p- --open -oJ /tmp/thyra_output/services_{target_safe}.json {target}
 Report detected services and any interesting banners or findings from scripts.
 """,
 
     "vuln_scan": """
 Target: {target}
-Vulnerability detection using nmap NSE vuln scripts.
-Command: nmap -sV --script vuln -T4 -oJ /tmp/vuln_{target_safe}.json {target}
-Also run: nmap --script=exploit -T4 {target}
+Vulnerability detection using nmap NSE vuln scripts. Use ONE ACTION block with numbered commands.
+Commands:
+1. nmap -sV --script vuln -T4 -oJ /tmp/thyra_output/vuln_{target_safe}.json {target}
+2. nmap --script=exploit -T4 {target}
 Report CVEs, severity, and exploitability.
 """,
 
     "ping_sweep": """
 Subnet: {target}
-Discover all live hosts. Use both ICMP and TCP methods to catch filtered hosts.
-Commands:
-1. nmap -sn -T4 {target} -oJ /tmp/sweep_{target_safe}.json
-2. masscan {target} -p80,443,22 --rate=1000
+Discover live hosts using nmap ping sweep (output to /tmp/thyra_output/sweep_{target_safe}.json) then masscan TCP check on ports 80,443,22.
 Report live IPs and any quick banner data.
 """,
 
     "wifi_survey": """
-Scan for 802.11 access points using monitor mode interface (wlan0mon or similar).
-Commands:
-1. airmon-ng start wlan0
-2. airodump-ng wlan0mon --output-format csv -w /tmp/wifi_survey
-Run for 30 seconds, then: airmon-ng stop wlan0mon
+Scan for 802.11 access points using monitor mode. Put wlan0 in monitor mode with airmon-ng, run airodump-ng for 30 seconds (CSV output to /tmp/thyra_output/wifi_survey), stop monitor mode.
 Report: SSID, BSSID, channel, encryption, signal strength, client count.
 """,
 
     "handshake_capture": """
-Target AP: BSSID={target}, Channel={channel}
-Capture WPA/WPA2 4-way handshake for offline cracking.
-Commands:
-1. airmon-ng start wlan0
-2. airodump-ng -c {channel} --bssid {target} -w /tmp/handshake wlan0mon &
-3. aireplay-ng -0 3 -a {target} wlan0mon
-4. Wait for handshake (watch airodump output for WPA handshake message)
-Report: capture file location, client MACs seen.
+Target AP: BSSID={bssid}, Channel={channel}
+Capture WPA/WPA2 4-way handshake for offline cracking. Enable monitor mode on wlan0, run airodump-ng locked to bssid/channel writing to /tmp/thyra_output/handshake, then send 3 deauth frames with aireplay-ng to trigger a handshake.
+Report: capture file path, client MACs seen.
 """,
 
     "spectrum_scan": """
 Frequency range: {start_freq} to {end_freq}
 Wideband RF spectrum scan using HackRF.
-Command: hackrf_sweep -f {start_freq_mhz}:{end_freq_mhz} -l 32 -g 32 -w 100000 2>/dev/null | tee /tmp/spectrum_scan.csv
-Also: rtl_power -f {start_freq}:{end_freq}:100k -g 40 -i 1 -1 /tmp/spectrum.csv
+Commands:
+1. hackrf_sweep -f {start_freq_mhz}:{end_freq_mhz} -l 32 -g 32 -w 100000 2>/dev/null | tee /tmp/thyra_output/spectrum_{start_freq_mhz}_{end_freq_mhz}.csv
+2. rtl_power -f {start_freq}:{end_freq}:100k -g 40 -i 1 -1 /tmp/thyra_output/spectrum_rtl.csv
 Report signal peaks, unusual transmissions, identified bands.
 """,
 
     "aircraft_scan": """
 Decode ADS-B aircraft transponder signals on 1090 MHz.
-Commands:
-1. sudo systemctl start dump1090-mutability
-2. sleep 30
-3. curl -s http://localhost/dump1090/data/aircraft.json 2>/dev/null | python3 -m json.tool | head -80
-4. sudo systemctl stop dump1090-mutability
-Data is served by lighttpd at /dump1090/data/aircraft.json (port 80).
+Start dump1090-mutability service, wait 30 seconds, fetch aircraft data from http://localhost/dump1090/data/aircraft.json (served by lighttpd on port 80), then stop the service.
 Report: aircraft registrations, positions, altitudes, squawk codes.
 """,
 
     "iot433": """
 Decode 433MHz ISM band transmissions from IoT devices, weather stations, key fobs, remotes.
-Command: rtl_433 -f 433920000 -s 250000 -F json -T 60 2>/dev/null | tee /tmp/433_scan.json
+Command: rtl_433 -f 433920000 -s 250000 -F json -T 60 2>/dev/null | tee /tmp/thyra_output/433_scan.json
 Report: device types, IDs, sensor readings, rolling codes detected.
 """,
 
     "web_scan": """
 Target: {target}
-Web vulnerability assessment.
+Web vulnerability assessment. Use ONE ACTION block with numbered commands.
 Commands:
-1. nikto -h {target} -Format json -output /tmp/nikto_{target_safe}.json
-2. httpx -u {target} -title -tech-detect -status-code -json -o /tmp/httpx_{target_safe}.json
-3. nuclei -u {target} -severity medium,high,critical -j -o /tmp/nuclei_{target_safe}.json
+1. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json
+2. httpx -u {target} -title -tech-detect -status-code -json -o /tmp/thyra_output/httpx_{target_safe}.json
+3. nuclei -u {target} -severity medium,high,critical -j -o /tmp/thyra_output/nuclei_{target_safe}.json
 Report: vulnerabilities found, technologies detected, interesting paths.
 """,
 
@@ -274,8 +256,8 @@ Report: vulnerabilities found, technologies detected, interesting paths.
 Target URL: {target}
 Directory and file enumeration.
 Commands:
-1. ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,301,302,403 -o /tmp/ffuf_{target_safe}.json -of json
-2. gobuster dir -u {target} -w /usr/share/wordlists/dirb/big.txt -o /tmp/gobuster_{target_safe}.txt
+1. ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,301,302,403 -o /tmp/thyra_output/ffuf_{target_safe}.json -of json
+2. gobuster -m dir -u {target} -w /usr/share/wordlists/dirb/big.txt -o /tmp/thyra_output/gobuster_{target_safe}.txt
 Report: discovered paths, interesting files, admin panels.
 """,
 
@@ -283,28 +265,28 @@ Report: discovered paths, interesting files, admin panels.
 Target: {target}
 Full reconnaissance chain. Execute in order:
 1. whois {target}
-2. dnsrecon -d {target} -t std
-3. gobuster dns -d {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt
-4. theHarvester -d {target} -b google,bing,linkedin
-5. nmap -sS -sV -T4 --open {target}
-6. nikto -h {target} (if web ports open)
+2. dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
+3. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
+4. theHarvester -d {target} -b google,bing,linkedin -f /tmp/thyra_output/harvest_{target_safe}.json
+5. nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/portscan_{target_safe}.json {target}
+6. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json (if web ports open)
 Compile all findings into a structured target profile.
 """,
 
     "network_map": """
 Subnet: {target}
 Complete network discovery and fingerprinting.
-1. nmap -sn {target} (host discovery)
-2. nmap -sV -T4 --open $(live hosts from step 1)
-3. tshark -i eth0 -a duration:30 -T json > /tmp/netmap_traffic.json (passive)
+1. nmap -sn {target} -oJ /tmp/thyra_output/sweep_{target_safe}.json (host discovery)
+2. nmap -sV -T4 --open -oJ /tmp/thyra_output/services_{target_safe}.json $(live hosts from step 1)
+3. tshark -i eth0 -a duration:30 -T json > /tmp/thyra_output/netmap_traffic.json (passive)
 Report: network topology, services, OS guesses, interesting hosts.
 """,
 
     "rf_survey": """
 Full RF environment survey. Run all sensors:
-1. rtl_433 -F json -T 30 2>/dev/null > /tmp/rf_433.json (ISM 433MHz)
-2. dump1090-mutability --net --net-http-port 8090 --quiet & sleep 30 && curl http://localhost:8090/data/aircraft.json > /tmp/rf_adsb.json && pkill dump1090
-3. hackrf_sweep -f 100:500 -l 32 -g 32 -w 500000 2>/dev/null | head -200 > /tmp/rf_spectrum.csv
+1. rtl_433 -F json -T 30 2>/dev/null > /tmp/thyra_output/rf_433.json (ISM 433MHz)
+2. dump1090-mutability --net --net-http-port 8090 --quiet & sleep 30 && curl http://localhost:8090/data/aircraft.json > /tmp/thyra_output/rf_adsb.json && pkill dump1090
+3. hackrf_sweep -f 100:500 -l 32 -g 32 -w 500000 2>/dev/null | head -200 > /tmp/thyra_output/rf_spectrum.csv
 Note: dump1090-mutability data at http://localhost/dump1090/data/aircraft.json via lighttpd on port 80.
 Compile: active frequencies, device types, signal strengths, anomalies.
 """,
