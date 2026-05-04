@@ -6,8 +6,8 @@ MODEL_DIR="$HOME/models"
 QWEN3="$MODEL_DIR/Qwen3-8B-abliterated-Q4_K_M.gguf"
 CODER="$MODEL_DIR/Qwen2.5-Coder-7B-abliterated-Q4_K_M.gguf"
 
-QWEN3_MIN=5000000000    # ~5GB minimum for complete download
-CODER_MIN=4600000000    # ~4.6GB minimum
+QWEN3_MIN=4700000000    # ~4.9GB expected, accept if >= 4.7GB
+CODER_MIN=4000000000    # ~4.3GB expected, accept if >= 4.0GB
 
 echo "[thyra] Checking model downloads..."
 
