@@ -21,6 +21,15 @@ def parse_react_response(response: str) -> dict:
     return blocks
 
 
+def _check_server() -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen("http://localhost:8080/health", timeout=3) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
 def run_agent(task: str, verbose: bool = True) -> dict:
     """
     Run the ReAct loop for a given task.
@@ -32,6 +41,12 @@ def run_agent(task: str, verbose: bool = True) -> dict:
 
     print(f"\n[THYRA] Task: {task}")
     print("=" * 60)
+
+    if not _check_server():
+        msg = "[ERROR] LLM server offline. Run: thyra server"
+        if verbose:
+            print(msg)
+        return {"task": task, "iterations": 0, "observations": [], "history": [], "report": msg}
 
     for iteration in range(1, MAX_ITERATIONS + 1):
         if verbose:
