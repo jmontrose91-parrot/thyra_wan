@@ -18,18 +18,18 @@ echo "========================================"
 # GPU
 echo ""
 echo "[GPU]"
-if command -v nvidia-smi >/dev/null 2>&1; then
-    nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu \
-        --format=csv,noheader 2>/dev/null | while IFS=, read name total used free temp; do
-        echo "  $name"
-        echo "  VRAM: $total total | $used used | $free free"
-        echo "  Temp: $temp"
-    done
+echo "  Orin (nvgpu)"
+# tegrastats gives one-shot GPU/RAM stats on Jetson
+if command -v tegrastats >/dev/null 2>&1; then
+    stats=$(timeout 2 tegrastats --interval 1000 2>/dev/null | head -1)
+    ram=$(echo "$stats" | grep -oP 'RAM \K[^(]+' | xargs)
+    gpu_util=$(echo "$stats" | grep -oP 'GR3D_FREQ \K[0-9]+')
+    cpu_temp=$(echo "$stats" | grep -oP 'CPU@\K[0-9.]+')
+    [ -n "$ram" ] && echo "  RAM: $ram" || echo "  RAM: (tegrastats unavailable in session)"
+    [ -n "$gpu_util" ] && echo "  GPU util: ${gpu_util}%"
+    [ -n "$cpu_temp" ] && echo "  Temp: ${cpu_temp}°C"
 else
-    vram=$(cat /proc/driver/nvidia/params 2>/dev/null | grep -i vram | head -1)
-    if [ -z "$vram" ]; then
-        warn "nvidia-smi not found — check render group"
-    fi
+    warn "tegrastats not found"
 fi
 
 # Models
@@ -89,15 +89,14 @@ done
 # Services / Ports
 echo ""
 echo "[Ports]"
-ss -tnlp 2>/dev/null | awk '/LISTEN/{
-    match($4, /:([0-9]+)$/, a)
-    p=a[1]
-    if (p=="22")   print "  [\033[0;32mOK\033[0m]  SSH (22)"
-    if (p=="80")   print "  [\033[0;32mOK\033[0m]  lighttpd/dump1090 (80)"
-    if (p=="8080") print "  [\033[0;32mOK\033[0m]  llama-server (8080)"
-    if (p=="2501") print "  [\033[0;32mOK\033[0m]  Kismet REST API (2501)"
-}' || true
-ss -tnlp 2>/dev/null | grep -qE ":22 " || warn "SSH (22) not listening"
+for port_label in "22:SSH" "80:lighttpd/dump1090" "5901:VNC" "8080:llama-server" "2501:Kismet REST API"; do
+    port="${port_label%%:*}"
+    label="${port_label#*:}"
+    if ss -tnlp 2>/dev/null | grep -q ":${port} "; then
+        ok "${label} (${port})"
+    fi
+done
+ss -tnlp 2>/dev/null | grep -q ":22 " || warn "SSH (22) not listening"
 
 # Recent logs
 echo ""
