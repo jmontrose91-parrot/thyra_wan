@@ -82,7 +82,7 @@ thyra> help
 ### Web
 | Command | What it does |
 |---|---|
-| `web scan <url>` | nikto + httpx + nuclei vulnerability scan |
+| `web scan <url>` | nikto + ffuf + curl vulnerability scan |
 | `dir fuzz <url>` | ffuf + gobuster directory/file enumeration |
 
 ### Compound

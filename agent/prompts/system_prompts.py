@@ -178,11 +178,12 @@ Summarize all discovered assets, emails, IPs, and infrastructure.
 
     "email_harvest": """
 Target domain: {target}
-Harvest discoverable email addresses. theHarvester is NOT installed (requires Python 3.12).
-Use available alternatives:
-1. recon-ng -w thyra -m recon/domains-contacts/whois_pocs -o SOURCE={target} -x
-2. dnsrecon -d {target} -t std 2>&1 | grep -i 'mail\|@'
-3. curl -s "https://api.certspotter.com/v1/issuances?domain={target}&expand=dns_names" 2>/dev/null | python3 -m json.tool | grep dns_name
+Harvest discoverable email addresses.
+Commands:
+1. theHarvester -d {target} -b google,bing,linkedin -f /tmp/thyra_output/harvest_{target_safe}.json
+2. recon-ng -w thyra -m recon/domains-contacts/whois_pocs -o SOURCE={target} -x
+3. dnsrecon -d {target} -t std 2>&1 | grep -i 'mail\|@'
+Note: theHarvester runs via Docker — may take 10–15s to start on first call.
 Report: unique email addresses or contacts discovered.
 """,
 
@@ -308,9 +309,10 @@ Full reconnaissance chain. Execute in order:
 2. dnsrecon -d {target} -t std -j /tmp/thyra_output/dns_{target_safe}.json
 3. dig {target} A +short && dig {target} MX +short && dig {target} NS +short
 4. gobuster -m dns -u {target} -w /usr/share/wordlists/dns/subdomains-top1million-5000.txt -o /tmp/thyra_output/subs_{target_safe}.txt
-5. nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/portscan_{target_safe}.json {target}
-6. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json
-Note: theHarvester is NOT installed. Do not use it. Use dnsrecon + gobuster for enumeration.
+5. theHarvester -d {target} -b google,bing,linkedin -f /tmp/thyra_output/harvest_{target_safe}.json
+6. nmap -sS -sV -T4 --open -oJ /tmp/thyra_output/portscan_{target_safe}.json {target}
+7. nikto -h {target} -Format json -output /tmp/thyra_output/nikto_{target_safe}.json
+Note: theHarvester runs via Docker — may take 10–15s to start on first call.
 Compile all findings into a structured target profile.
 """,
 
