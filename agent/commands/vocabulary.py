@@ -195,6 +195,29 @@ COMMANDS = {
         "workflow": "dir_fuzz",
     },
 
+    # ── ESP32 (PinPulse Shield) ────────────────────────────────────────────
+    "esp32_scan": {
+        "aliases": ["esp32 scan", "esp32 wifi scan", "pinpulse scan", "wifi scan esp32"],
+        "args": [],
+        "model": "code",
+        "description": "WiFi AP scan via ESP32 PinPulse (USB serial, JSON output)",
+        "workflow": "esp32_scan",
+    },
+    "esp32_deauth": {
+        "aliases": ["esp32 deauth", "deauth esp32", "pinpulse deauth", "esp deauth"],
+        "args": ["bssid", "channel"],
+        "model": "code",
+        "description": "Send deauth frames via ESP32 PinPulse to target AP",
+        "workflow": "esp32_deauth",
+    },
+    "esp32_ble": {
+        "aliases": ["ble scan", "scan ble", "bluetooth scan", "find bluetooth", "esp32 ble"],
+        "args": ["seconds?"],
+        "model": "code",
+        "description": "Scan BLE devices via ESP32 PinPulse",
+        "workflow": "esp32_ble",
+    },
+
     # ── COMPOUND WORKFLOWS ─────────────────────────────────────────────────
     "full_recon": {
         "aliases": ["full recon", "deep recon", "everything on", "full profile"],
@@ -242,6 +265,7 @@ def list_commands() -> str:
         "NETWORK":  ["port_scan", "service_scan", "vuln_scan", "ping_sweep", "traceroute", "packet_capture"],
         "WIFI":     ["kismet_survey", "wifi_survey", "wifi_clients", "handshake_capture"],
         "SDR/RF":   ["rtl_power_scan", "hackrf_scan", "spectrum_scan", "fm_scan", "aircraft_scan", "iot433", "lora_scan"],
+        "ESP32":    ["esp32_scan", "esp32_deauth", "esp32_ble"],
         "WEB":      ["web_scan", "dir_fuzz"],
         "COMPOUND": ["full_recon", "network_map", "rf_survey"],
     }
