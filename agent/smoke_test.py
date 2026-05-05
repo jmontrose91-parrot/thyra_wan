@@ -256,6 +256,24 @@ except (ImportError, AttributeError, OSError) as e:
     # AttributeError/OSError: librtlsdr.so may be older than pyrtlsdr expects
     check("  pip: pyrtlsdr", False, f"librtlsdr compat issue: {e}", optional=True)
 
+try:
+    from tools.esp32_controller import _find_port, send_command, wifi_scan, deauth, ble_scan
+    check("tools.esp32_controller", True)
+    import glob
+    ports = glob.glob("/dev/ttyACM*")
+    if ports:
+        result = send_command("status", timeout=5)
+        if result.get("success") and result.get("data", {}).get("version") == "1.0":
+            check("  ESP32 PinPulse — serial comms", True,
+                  f"heap={result['data'].get('heap',0):,} ch={result['data'].get('channel')}")
+        else:
+            check("  ESP32 PinPulse — serial comms", False,
+                  result.get("error", result.get("raw", "no response")), optional=True)
+    else:
+        check("  ESP32 PinPulse — serial comms", False, "no /dev/ttyACM* found", optional=True)
+except Exception as e:
+    check("tools.esp32_controller", False, str(e))
+
 
 # ── LLAMA SERVER ──────────────────────────────────────────────────────────────
 section("7. LLaMA Server")
