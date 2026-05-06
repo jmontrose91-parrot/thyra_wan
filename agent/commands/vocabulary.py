@@ -218,6 +218,23 @@ COMMANDS = {
         "workflow": "esp32_ble",
     },
 
+    # ── NRF24 (RF-Nano v3) ────────────────────────────────────────────────────
+    "nrf24_scan": {
+        "aliases": ["nrf24 scan", "2.4ghz scan", "scan 2.4", "rf nano scan", "nrf scan",
+                    "scan nrf24", "2.4 scan"],
+        "args": [],
+        "model": "code",
+        "description": "Scan all 128 nRF24 channels (2400–2527 MHz) for carrier activity",
+        "workflow": "nrf24_scan",
+    },
+    "nrf24_sniff": {
+        "aliases": ["nrf24 sniff", "sniff nrf24", "sniff 2.4", "nrf24 listen", "listen nrf24"],
+        "args": ["channel?", "duration?"],
+        "model": "code",
+        "description": "Sniff nRF24L01+ packets on a specific channel",
+        "workflow": "nrf24_sniff",
+    },
+
     # ── COMPOUND WORKFLOWS ─────────────────────────────────────────────────
     "full_recon": {
         "aliases": ["full recon", "deep recon", "everything on", "full profile"],
@@ -266,6 +283,7 @@ def list_commands() -> str:
         "WIFI":     ["kismet_survey", "wifi_survey", "wifi_clients", "handshake_capture"],
         "SDR/RF":   ["rtl_power_scan", "hackrf_scan", "spectrum_scan", "fm_scan", "aircraft_scan", "iot433", "lora_scan"],
         "ESP32":    ["esp32_scan", "esp32_deauth", "esp32_ble"],
+        "NRF24":    ["nrf24_scan", "nrf24_sniff"],
         "WEB":      ["web_scan", "dir_fuzz"],
         "COMPOUND": ["full_recon", "network_map", "rf_survey"],
     }

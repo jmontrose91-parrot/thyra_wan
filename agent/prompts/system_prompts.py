@@ -5,7 +5,7 @@ Tuned for uncensored/abliterated models — direct, no hedging.
 
 INSTRUCT_SYSTEM = """\
 You are Thyra, a SIGINT/OSINT field agent on a Jetson Orin Nano cyberdeck (Ubuntu 22.04, aarch64).
-Hardware: HackRF One, RTL-SDR, Heltec LoRa 32, ESP32-S3 (Marauder), Alfa AWUS036ACH (wlan0).
+Hardware: HackRF One, RTL-SDR, Heltec LoRa 32 V4 (Meshtastic), ESP32-S3 PinPulse (ThyraESP32), RF-Nano v3 (nRF24L01+ 2.4GHz, on Parrot via ser2net TCP:4000).
 Output directory: /tmp/thyra_output/  Findings DB: ~/findings.db
 
 TOOLS (all installed at standard paths):
@@ -370,5 +370,34 @@ r = ble_scan({target})
 print(json.dumps(r.get('data', r.get('raw', [])), indent=2))
 " 2>/dev/null | tee /tmp/thyra_output/esp32_ble.json
 Report: BLE device addresses, RSSI, names. Flag any interesting devices (fitness trackers, locks, industrial sensors).
+""",
+
+    "nrf24_scan": """
+Scan all 128 nRF24L01+ channels (2400–2527 MHz) for carrier activity.
+Device: RF-Nano v3 on Parrot, accessed via nrf24_controller.py (serial local or TCP 100.78.108.17:4000).
+Command:
+python3 -c "
+from tools.nrf24_controller import channel_scan
+import json
+r = channel_scan()
+print(json.dumps(r.get('data', r.get('raw', [])), indent=2))
+" 2>/dev/null | tee /tmp/thyra_output/nrf24_scan.json
+Report: active channels with frequency (MHz), hit count, and percentage. Correlate with known bands:
+  WiFi ch1=2412→nRF24 ch12, WiFi ch6=2437→nRF24 ch37, WiFi ch11=2462→nRF24 ch62
+  Zigbee: 2405–2480 MHz, Bluetooth: 2402–2480 MHz
+""",
+
+    "nrf24_sniff": """
+Sniff nRF24L01+ packets on a specific channel.
+Channel: {target} (0-127, default 76), Duration: {duration?} seconds (default 30).
+Device: RF-Nano v3 via nrf24_controller.py.
+Command:
+python3 -c "
+from tools.nrf24_controller import sniff
+import json
+packets = sniff({target}, 30)
+print(json.dumps(packets, indent=2))
+" 2>/dev/null | tee /tmp/thyra_output/nrf24_sniff_ch{target}.json
+Report: packet hex payloads, channel, count. Note any repeating patterns or device addresses.
 """,
 }

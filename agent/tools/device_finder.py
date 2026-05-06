@@ -43,9 +43,24 @@ def find_heltec() -> str | None:
     return find_port("heltec", os.environ.get("THYRA_LORA_PORT"))
 
 
+def find_nrf24() -> str | None:
+    """RF-Nano v3 (nRF24L01+) — ID_VENDOR=1a86, ID_MODEL=USB_Serial (QinHeng CH340)"""
+    import subprocess
+    import glob
+    for port in sorted(glob.glob("/dev/ttyUSB*")):
+        try:
+            r = subprocess.run(["udevadm", "info", port], capture_output=True, text=True)
+            if "1a86" in r.stdout and "USB_Serial" in r.stdout:
+                return port
+        except Exception:
+            pass
+    return os.environ.get("THYRA_NRF24_LOCAL_PORT")
+
+
 def list_devices() -> dict[str, str | None]:
     """Return a snapshot of all known Thyra serial devices and their current ports."""
     return {
         "pinpulse": find_pinpulse(),
         "heltec_lora": find_heltec(),
+        "nrf24_rfnano": find_nrf24(),
     }

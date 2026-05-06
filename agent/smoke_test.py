@@ -217,6 +217,9 @@ try:
           pinpulse or "not connected", optional=True)
     check("  Heltec LoRa 32 V4 (heltec_wifi_lora_32_v4)", heltec is not None,
           heltec or "not connected", optional=True)
+    nrf24 = devs["nrf24_rfnano"]
+    check("  RF-Nano v3 nRF24 (USB_Serial/1a86)", nrf24 is not None,
+          nrf24 or "not local — using TCP bridge 100.78.108.17:4000", optional=True)
 except Exception as e:
     check("tools.device_finder", False, str(e))
 
@@ -268,6 +271,20 @@ try:
 except (ImportError, AttributeError, OSError) as e:
     # AttributeError/OSError: librtlsdr.so may be older than pyrtlsdr expects
     check("  pip: pyrtlsdr", False, f"librtlsdr compat issue: {e}", optional=True)
+
+try:
+    from tools.nrf24_controller import status as nrf24_status, channel_scan, sniff
+    check("tools.nrf24_controller", True)
+    result = nrf24_status()
+    if result.get("success") and result.get("data", {}).get("version") == "1.0":
+        d = result["data"]
+        check("  RF-Nano — comms", True,
+              f"via={result.get('via')} ch={d.get('channel')} rate={d.get('rate')}")
+    else:
+        check("  RF-Nano — comms", False,
+              result.get("error", "no response"), optional=True)
+except Exception as e:
+    check("tools.nrf24_controller", False, str(e))
 
 try:
     from tools.esp32_controller import send_command, wifi_scan, deauth, ble_scan
