@@ -42,11 +42,9 @@ HACKRF_SAMPLE_RATE = 20e6 # 20 MSPS default
 RTL_GAIN   = 40           # RTL-SDR gain (dB)
 RTL_SAMPLE = 250000       # RTL sample rate for rtl_433
 
-MESHTASTIC_PORT = "/dev/ttyUSB0"   # adjust if Heltec is on different port
-MESHTASTIC_BAUD = 115200
+MESHTASTIC_BAUD = 115200           # Heltec LoRa 32 V4 — port auto-detected by device_finder
 
 WIFI_MONITOR_IF = "wlan0"          # base interface; mon = wlan0mon after airmon-ng
-ESP32_PORT      = "/dev/ttyUSB1"   # Marauder ESP32-S3
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_LEVEL  = "INFO"   # DEBUG, INFO, WARNING, ERROR

@@ -13,7 +13,7 @@ TOOLS (all installed at standard paths):
   Wireless: aircrack-ng, airodump-ng, kismet (port 2501 REST API)
   SDR/RF:   rtl_433, rtl_power, hackrf_sweep, hackrf_transfer, dump1090-mutability
   OSINT:    recon-ng, dnsrecon, dig, host, nslookup, gobuster, ffuf, nikto, sqlmap, hydra
-  Serial:   /dev/ttyUSB0 (Heltec LoRa), /dev/ttyUSB1 (ESP32-S3)
+  Serial:   Heltec LoRa 32 V4 (ID_MODEL=heltec_wifi_lora_32_v4, auto-detected), PinPulse Shield (ID_MODEL=ESP32S3_DEV, auto-detected)
 
 RULES:
 - Direct and technical. No disclaimers, no refusals.
@@ -43,7 +43,7 @@ ENVIRONMENT:
   Output dir: /tmp/thyra_output/
   Wordlists:  /usr/share/wordlists/
   Interfaces: eth0 (LAN), wlan0 (monitor-capable), wlan0mon (after airmon-ng start)
-  Serial:     /dev/ttyUSB0 (LoRa/Heltec), /dev/ttyUSB1 (ESP32-S3)
+  Serial:     Heltec LoRa 32 V4 (auto-detected by ID_MODEL), PinPulse Shield (auto-detected by ID_MODEL)
 
 RULES:
 - Machine-parseable output flags: nmap -oJ, ffuf -of json, dnsrecon -j, nikto -Format json
@@ -74,7 +74,7 @@ Request: hackrf sweep 100 to 500 MHz
 Output: hackrf_sweep -f 100:500 -l 32 -g 32 -w 100000 2>/dev/null | tee /tmp/thyra_output/spectrum_100_500.csv
 
 Request: check what's on serial port
-Output: cat /dev/ttyUSB0 & sleep 10; kill %1
+Output: python3 -c "from tools.device_finder import find_heltec; p=find_heltec(); print(f'Heltec on {p}') if p else print('Heltec not found')"
 """
 
 # ── Per-workflow prompt fragments appended to the system prompt ─────────────
@@ -109,10 +109,9 @@ Save CSV output to /tmp/thyra_output/wifi_clients. Report: client MACs, BSSIDs, 
 """,
 
     "lora_scan": """
-Monitor LoRa transmissions on {target} MHz (default 915 MHz).
-Note: Heltec LoRa 32 must be running Meshtastic firmware or a custom sketch.
-Command: python3 -c "import serial; s=serial.Serial('/dev/ttyUSB0', 115200, timeout=60); [print(s.readline().decode(errors='ignore').strip()) for _ in range(100)]"
-Alternatively monitor with: minicom -D /dev/ttyUSB0 -b 115200
+Monitor LoRa/Meshtastic transmissions via Heltec LoRa 32 V4.
+Device auto-detected by ID_MODEL=heltec_wifi_lora_32_v4 via device_finder.py.
+Command: python3 ~/agent/tools/lora_listener.py --timeout 60
 Report: Meshtastic node IDs, message fragments, GPS positions if included.
 """,
 
@@ -337,7 +336,7 @@ Compile: active frequencies, device types, signal strengths, anomalies.
 
     "esp32_scan": """
 WiFi AP scan via ESP32 PinPulse Shield (ThyraESP32 firmware, USB CDC serial).
-The ESP32 is accessible at /dev/ttyACM0 (auto-detected by esp32_controller.py).
+Device auto-detected by ID_MODEL=ESP32S3_DEV via device_finder.py.
 Command:
 python3 ~/agent/tools/esp32_controller.py
 Or send directly:
@@ -355,7 +354,7 @@ import json
 r = deauth('{bssid}', {channel}, 50)
 print(json.dumps(r, indent=2))
 " 2>/dev/null | tee /tmp/thyra_output/esp32_deauth.json
-Note: ESP32 must be on /dev/ttyACM0. Run esp32_scan first to confirm target AP details.
+Note: PinPulse auto-detected by ID_MODEL=ESP32S3_DEV. Run esp32_scan first to confirm target AP details.
 Note: count=50 sends 50 deauth frames. Increase for persistent effect.
 Report: sent count, BSSID, channel from JSON response.
 """,

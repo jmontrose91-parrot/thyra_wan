@@ -1,7 +1,8 @@
 """
 Thyra LoRa/Meshtastic Listener
-Receives messages and node info from Heltec LoRa 32 running Meshtastic.
-Usage: python3 lora_listener.py [--port /dev/ttyUSB0] [--timeout 60]
+Receives messages and node info from Heltec LoRa 32 V4 running Meshtastic.
+Device identified by USB tag: ID_MODEL contains 'heltec'
+Usage: python3 lora_listener.py [--timeout 60]
 """
 
 import json
@@ -11,11 +12,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import MESHTASTIC_PORT, MESHTASTIC_BAUD
+from config import MESHTASTIC_BAUD
+from tools.device_finder import find_heltec
 from tools.executor import save_finding
 
 
-def listen_meshtastic(port: str = MESHTASTIC_PORT, timeout: int = 60) -> list[dict]:
+def listen_meshtastic(port: str | None = None, timeout: int = 60) -> list[dict]:
     """
     Connect to Meshtastic device and collect packets for `timeout` seconds.
     Returns list of message dicts.
@@ -25,6 +27,10 @@ def listen_meshtastic(port: str = MESHTASTIC_PORT, timeout: int = 60) -> list[di
         import meshtastic.serial_interface
     except ImportError:
         return [{"error": "meshtastic package not installed. Run: pip3 install meshtastic"}]
+
+    port = port or find_heltec()
+    if not port:
+        return [{"error": "Heltec LoRa 32 V4 not found (ID_MODEL contains 'heltec')"}]
 
     messages = []
     start = time.time()
@@ -54,7 +60,7 @@ def listen_meshtastic(port: str = MESHTASTIC_PORT, timeout: int = 60) -> list[di
 
     try:
         iface = meshtastic.serial_interface.SerialInterface(devPath=port)
-        print(f"[LoRa] Connected to {port}. Listening for {timeout}s...")
+        print(f"[LoRa] Connected to {port} (heltec_wifi_lora_32_v4). Listening for {timeout}s...")
 
         # Register callback
         from pubsub import pub
@@ -68,12 +74,12 @@ def listen_meshtastic(port: str = MESHTASTIC_PORT, timeout: int = 60) -> list[di
     except Exception as e:
         messages.append({"error": str(e), "port": port})
         print(f"[LoRa] Error: {e}")
-        print(f"[LoRa] Check: ls /dev/ttyUSB* /dev/ttyACM* — is the device connected?")
+        print(f"[LoRa] Check: is Heltec LoRa 32 V4 connected? (ID_MODEL=heltec_wifi_lora_32_v4)")
 
     return messages
 
 
-def listen_serial_raw(port: str = MESHTASTIC_PORT, baud: int = MESHTASTIC_BAUD,
+def listen_serial_raw(port: str | None = None, baud: int = MESHTASTIC_BAUD,
                       timeout: int = 60) -> list[str]:
     """
     Raw serial listener — fallback if meshtastic package unavailable.
@@ -84,11 +90,14 @@ def listen_serial_raw(port: str = MESHTASTIC_PORT, baud: int = MESHTASTIC_BAUD,
     except ImportError:
         return ["pyserial not installed. Run: pip3 install pyserial"]
 
+    port = port or find_heltec()
+    if not port:
+        return ["[ERROR] Heltec LoRa 32 V4 not found (ID_MODEL contains 'heltec')"]
     lines = []
     start = time.time()
     try:
         with serial.Serial(port, baud, timeout=1) as ser:
-            print(f"[Serial] Listening on {port} @ {baud} baud for {timeout}s...")
+            print(f"[Serial] Listening on {port} (heltec_wifi_lora_32_v4) @ {baud} baud for {timeout}s...")
             while time.time() - start < timeout:
                 line = ser.readline().decode(errors="ignore").strip()
                 if line:
@@ -102,7 +111,7 @@ def listen_serial_raw(port: str = MESHTASTIC_PORT, baud: int = MESHTASTIC_BAUD,
 
 def main():
     parser = argparse.ArgumentParser(description="Thyra LoRa/Meshtastic listener")
-    parser.add_argument("--port",    default=MESHTASTIC_PORT)
+    parser.add_argument("--port",    default=None, help="Serial port (auto-detected if omitted)")
     parser.add_argument("--timeout", type=int, default=60)
     parser.add_argument("--raw",     action="store_true", help="Use raw serial instead of Meshtastic API")
     parser.add_argument("--baud",    type=int, default=MESHTASTIC_BAUD)

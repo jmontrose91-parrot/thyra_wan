@@ -208,6 +208,19 @@ for name, cmd in optional_tools.items():
 section("6b. Python Tool Modules")
 
 try:
+    from tools.device_finder import find_pinpulse, find_heltec, list_devices
+    check("tools.device_finder", True)
+    devs = list_devices()
+    pinpulse = devs["pinpulse"]
+    heltec   = devs["heltec_lora"]
+    check("  PinPulse Shield (ESP32S3_DEV)", pinpulse is not None,
+          pinpulse or "not connected", optional=True)
+    check("  Heltec LoRa 32 V4 (heltec_wifi_lora_32_v4)", heltec is not None,
+          heltec or "not connected", optional=True)
+except Exception as e:
+    check("tools.device_finder", False, str(e))
+
+try:
     from tools.rtl_power_json import rtl_power_to_json, top_signals
     check("tools.rtl_power_json", True)
 except Exception as e:
@@ -257,20 +270,15 @@ except (ImportError, AttributeError, OSError) as e:
     check("  pip: pyrtlsdr", False, f"librtlsdr compat issue: {e}", optional=True)
 
 try:
-    from tools.esp32_controller import _find_port, send_command, wifi_scan, deauth, ble_scan
+    from tools.esp32_controller import send_command, wifi_scan, deauth, ble_scan
     check("tools.esp32_controller", True)
-    import glob
-    ports = glob.glob("/dev/ttyACM*")
-    if ports:
-        result = send_command("status", timeout=5)
-        if result.get("success") and result.get("data", {}).get("version") == "1.0":
-            check("  ESP32 PinPulse — serial comms", True,
-                  f"heap={result['data'].get('heap',0):,} ch={result['data'].get('channel')}")
-        else:
-            check("  ESP32 PinPulse — serial comms", False,
-                  result.get("error", result.get("raw", "no response")), optional=True)
+    result = send_command("status", timeout=5)
+    if result.get("success") and result.get("data", {}).get("version") == "1.0":
+        check("  ESP32 PinPulse — serial comms", True,
+              f"port={result.get('port')} heap={result['data'].get('heap',0):,}")
     else:
-        check("  ESP32 PinPulse — serial comms", False, "no /dev/ttyACM* found", optional=True)
+        check("  ESP32 PinPulse — serial comms", False,
+              result.get("error", result.get("raw", "not connected")), optional=True)
 except Exception as e:
     check("tools.esp32_controller", False, str(e))
 

@@ -1,47 +1,25 @@
 """
 ThyraESP32 serial controller.
 Communicates with the Lonely Binary PinPulse Shield running ThyraESP32 firmware.
-Device: /dev/ttyACM0 (when plugged into Jetson, not conflicting with Jetson gadget UART)
+Device identified by USB tag: ID_MODEL=ESP32S3_DEV
 """
 import serial
 import json
 import time
-import os
+import sys
+from pathlib import Path
 
-ESP32_PORT = os.environ.get("THYRA_ESP32_PORT", "/dev/ttyACM0")
+sys.path.insert(0, str(Path(__file__).parent))
+from device_finder import find_pinpulse
+
 BAUD = 115200
 DEFAULT_TIMEOUT = 10
 
 
-def _find_port():
-    import glob
-    import subprocess
-    candidates = sorted(glob.glob("/dev/ttyACM*"))
-    # First pass: prefer the PinPulse Shield (ESP32S3_DEV), not Heltec
-    for port in candidates:
-        try:
-            result = subprocess.run(
-                ["udevadm", "info", port], capture_output=True, text=True
-            )
-            if "ESP32S3_DEV" in result.stdout:
-                return port
-        except Exception:
-            pass
-    # Fallback: any Espressif device
-    for port in candidates:
-        try:
-            result = subprocess.run(
-                ["udevadm", "info", port], capture_output=True, text=True
-            )
-            if "303a" in result.stdout or "Espressif" in result.stdout:
-                return port
-        except Exception:
-            pass
-    return ESP32_PORT
-
-
 def send_command(cmd: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
-    port = _find_port()
+    port = find_pinpulse()
+    if not port:
+        return {"success": False, "error": "PinPulse Shield not found (ID_MODEL=ESP32S3_DEV)"}
     try:
         with serial.Serial(port, BAUD, timeout=timeout) as s:
             time.sleep(0.3)
@@ -53,14 +31,13 @@ def send_command(cmd: str, timeout: int = DEFAULT_TIMEOUT) -> dict:
                 line = s.readline().decode(errors="ignore").strip()
                 if line:
                     lines.append(line)
-                    # Stop after we have a complete JSON response
                     if lines and (lines[-1].startswith("{") or lines[-1].endswith("]")):
                         break
             raw = "\n".join(lines)
             try:
-                return {"success": True, "data": json.loads(raw), "raw": raw}
+                return {"success": True, "data": json.loads(raw), "raw": raw, "port": port}
             except json.JSONDecodeError:
-                return {"success": True, "raw": raw}
+                return {"success": True, "raw": raw, "port": port}
     except serial.SerialException as e:
         return {"success": False, "error": str(e), "port": port}
 
