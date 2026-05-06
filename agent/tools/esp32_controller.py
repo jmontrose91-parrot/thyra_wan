@@ -15,10 +15,21 @@ DEFAULT_TIMEOUT = 10
 
 def _find_port():
     import glob
-    candidates = glob.glob("/dev/ttyACM*")
+    import subprocess
+    candidates = sorted(glob.glob("/dev/ttyACM*"))
+    # First pass: prefer the PinPulse Shield (ESP32S3_DEV), not Heltec
     for port in candidates:
         try:
-            import subprocess
+            result = subprocess.run(
+                ["udevadm", "info", port], capture_output=True, text=True
+            )
+            if "ESP32S3_DEV" in result.stdout:
+                return port
+        except Exception:
+            pass
+    # Fallback: any Espressif device
+    for port in candidates:
+        try:
             result = subprocess.run(
                 ["udevadm", "info", port], capture_output=True, text=True
             )
